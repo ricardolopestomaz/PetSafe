@@ -5,7 +5,7 @@ import {
   Octicons,
 } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -21,6 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { COLORS } from "@/global/themes";
 import { listarMeusPets, Pet } from "@/services/pets";
+import { Leitura, listarTodasLeituras } from "@/services/leituras";
 import { styles } from "@/styles/homeStyles";
 
 // Importação dos banners em PNG
@@ -68,7 +69,11 @@ export default function Home() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [carregandoPets, setCarregandoPets] = useState(true);
 
-  const opacidade = useRef(new Animated.Value(1)).current;
+  // Estado das Leituras
+  const [leituras, setLeituras] = useState<Leitura[]>([]);
+  const [carregandoLeituras, setCarregandoLeituras] = useState(false);
+
+  const [opacidade] = useState(() => new Animated.Value(1));
 
   // Carrega pets da API
   async function carregarPets() {
@@ -83,9 +88,23 @@ export default function Home() {
     }
   }
 
+  // Carrega histórico de escaneamentos
+  async function carregarLeituras() {
+    try {
+      setCarregandoLeituras(true);
+      const data = await listarTodasLeituras();
+      setLeituras(data || []);
+    } catch {
+      setLeituras([]);
+    } finally {
+      setCarregandoLeituras(false);
+    }
+  }
+
   useEffect(() => {
     Promise.resolve().then(() => {
       carregarPets();
+      carregarLeituras();
     });
   }, []);
 
@@ -115,7 +134,13 @@ export default function Home() {
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
-        data={filtroAtivo === "pets" ? pets : []}
+        data={
+          filtroAtivo === "pets"
+            ? (pets as any[])
+            : filtroAtivo === "historico"
+            ? (leituras as any[])
+            : []
+        }
         keyExtractor={(item) => item.id || Math.random().toString()}
         contentContainerStyle={styles.conteudo}
         showsVerticalScrollIndicator={false}
@@ -124,7 +149,15 @@ export default function Home() {
             {/* NOME DINÂMICO */}
             <Text style={styles.titulo}>Olá, {primeiroNome}!</Text>
 
-            <View style={styles.bannerWrapper}>
+            <TouchableOpacity
+              activeOpacity={0.9}
+              style={styles.bannerWrapper}
+              onPress={() => {
+                if (indiceAtual === 1) {
+                  router.push("/mapa" as any);
+                }
+              }}
+            >
               <Animated.View
                 style={[styles.bannerContainer, { opacity: opacidade }]}
               >
@@ -143,7 +176,7 @@ export default function Home() {
                   </Text>
                 </View>
               </Animated.View>
-            </View>
+            </TouchableOpacity>
 
             {/* INDICADORES DO CARROSSEL */}
             <View style={styles.indicadores}>
@@ -188,7 +221,10 @@ export default function Home() {
                       ? styles.botaoAtivo
                       : styles.botao
                   }
-                  onPress={() => setFiltroAtivo("historico")}
+                  onPress={() => {
+                    setFiltroAtivo("historico");
+                    carregarLeituras();
+                  }}
                 >
                   <Text
                     style={
@@ -233,6 +269,40 @@ export default function Home() {
               </View>
             )}
 
+            {/* CABEÇALHO DO HISTÓRICO DE LEITURAS */}
+            {filtroAtivo === "historico" && (
+              <>
+                <View style={styles.headerAcoes}>
+                  <Text style={styles.textoSecao}>Leituras das Medalhas</Text>
+                  <TouchableOpacity
+                    style={styles.adicionar}
+                    onPress={() => router.push("/mapa" as any)}
+                  >
+                    <Text style={styles.textoAdicionar}>Ver no Mapa 🗺️</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* BANNER DE ACESSO AO MAPA */}
+                <TouchableOpacity
+                  style={styles.bannerMapaBotao}
+                  onPress={() => router.push("/mapa" as any)}
+                >
+                  <View style={styles.bannerMapaIconeTexto}>
+                    <Ionicons name="map" size={24} color={COLORS.blue} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.bannerMapaTitulo}>
+                        Mapa Interativo de Leituras
+                      </Text>
+                      <Text style={styles.bannerMapaSubtitulo}>
+                        Explore todos os locais onde as tags foram lidas
+                      </Text>
+                    </View>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={COLORS.blue} />
+                </TouchableOpacity>
+              </>
+            )}
+
             {/* LOADING STATE DA LISTA */}
             {filtroAtivo === "pets" && carregandoPets && (
               <ActivityIndicator
@@ -242,7 +312,15 @@ export default function Home() {
               />
             )}
 
-            {/* EMPTY STATE DA LISTA */}
+            {filtroAtivo === "historico" && carregandoLeituras && (
+              <ActivityIndicator
+                size="large"
+                color={COLORS.blue}
+                style={styles.loading}
+              />
+            )}
+
+            {/* EMPTY STATE DA LISTA DE PETS */}
             {filtroAtivo === "pets" && !carregandoPets && pets.length === 0 && (
               <View style={styles.emptyContainer}>
                 <Ionicons
@@ -256,7 +334,23 @@ export default function Home() {
               </View>
             )}
 
-            {filtroAtivo !== "pets" && (
+            {/* EMPTY STATE DE HISTÓRICO */}
+            {filtroAtivo === "historico" &&
+              !carregandoLeituras &&
+              leituras.length === 0 && (
+                <View style={styles.emptyContainer}>
+                  <Ionicons
+                    name="location-outline"
+                    size={64}
+                    color={COLORS.placeholder || "#999999"}
+                  />
+                  <Text style={styles.emptyText}>
+                    Nenhuma leitura registrada ainda.
+                  </Text>
+                </View>
+              )}
+
+            {filtroAtivo === "outro" && (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyText}>Em breve...</Text>
               </View>
@@ -264,22 +358,66 @@ export default function Home() {
           </>
         }
         renderItem={({ item }) => {
-          if (filtroAtivo !== "pets") return null;
+          if (filtroAtivo === "pets") {
+            const pet = item as Pet;
+            return (
+              <Pressable
+                style={styles.card}
+                onPress={() => router.push(`/pet/${pet.id}` as any)}
+              >
+                <View style={styles.cardInfo}>
+                  <Text style={styles.petName}>{pet.nome}</Text>
+                  <Text style={styles.petDetails}>
+                    {pet.especie} • {pet.raca || "Sem raça definida"}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.blue} />
+              </Pressable>
+            );
+          }
 
-          return (
-            <Pressable
-              style={styles.card}
-              onPress={() => router.push(`/pet/${item.id}` as any)}
-            >
-              <View style={styles.cardInfo}>
-                <Text style={styles.petName}>{item.nome}</Text>
-                <Text style={styles.petDetails}>
-                  {item.especie} • {item.raca || "Sem raça definida"}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.blue} />
-            </Pressable>
-          );
+          if (filtroAtivo === "historico") {
+            const leitura = item as Leitura;
+            return (
+              <Pressable
+                style={styles.cardLeitura}
+                onPress={() =>
+                  router.push({
+                    pathname: "/mapa" as any,
+                    params: { petId: leitura.pet_id },
+                  })
+                }
+              >
+                <View style={styles.cardLeituraIcone}>
+                  <MaterialCommunityIcons
+                    name="paw"
+                    size={18}
+                    color={COLORS.blue}
+                  />
+                </View>
+                <View style={styles.cardLeituraInfo}>
+                  <Text style={styles.cardLeituraPet}>
+                    {leitura.pet?.nome || "Medalha PetSafe"}
+                  </Text>
+                  <Text style={styles.cardLeituraEndereco} numberOfLines={1}>
+                    {leitura.endereco_aproximado ||
+                      `${leitura.bairro || ""} ${leitura.cidade || ""}`.trim() ||
+                      `Lat: ${leitura.latitude.toFixed(4)}, Long: ${leitura.longitude.toFixed(4)}`}
+                  </Text>
+                  <Text style={styles.cardLeituraData}>
+                    {new Date(leitura.criado_em).toLocaleString("pt-BR")}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={COLORS.blue}
+                />
+              </Pressable>
+            );
+          }
+
+          return null;
         }}
       />
 
@@ -311,10 +449,13 @@ export default function Home() {
 
         <TouchableOpacity
           style={styles.itemRodape}
-          onPress={() => setAbaAtiva("scanner")}
+          onPress={() => {
+            setAbaAtiva("scanner");
+            router.push("/mapa" as any);
+          }}
         >
           <Ionicons
-            name="qr-code-outline"
+            name="map-outline"
             size={20}
             color={abaAtiva === "scanner" ? COLORS.yellow : COLORS.cinzaclaro}
           />
