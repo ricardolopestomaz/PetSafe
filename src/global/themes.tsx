@@ -1,10 +1,13 @@
 export const COLORS = {
-  yellow: '#FFB101',
-  blue: '#1D1E64',
-  white: '#FFFFFF',
-  gray: '#D4D4D4',
-  black: '#000000',
-  placeholder: '#999999',
+  roxoclaro: "#8B8BAD",
+  amareloclaro: "#F3CE7B",
+  yellow: "#FFB101",
+  blue: "#1D1E64",
+  white: "#FFFFFF",
+  gray: "#EEEEEE",
+  black: "#000000",
+  placeholder: "#999999",
+  cinzaclaro: "#D1D1D6",
 };
 
 export const themes = {

@@ -7,7 +7,7 @@ const PADDING_HORIZONTAL = 24;
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.white,
   },
 
   conteudo: {
@@ -53,7 +53,7 @@ export const styles = StyleSheet.create({
   tituloBanner: {
     fontSize: 14,
     fontFamily: "Poppins_700Bold",
-    color: "#FFFFFF",
+    color: COLORS.white,
     lineHeight: Math.round(SCREEN_WIDTH * 0.052),
   },
 
@@ -78,12 +78,12 @@ export const styles = StyleSheet.create({
     width: 18,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#E0E0E0",
+    backgroundColor: COLORS.cinzaclaro,
     marginHorizontal: 3,
   },
 
   indicadorAtivo: {
-    backgroundColor: "#9A97C6",
+    backgroundColor: COLORS.roxoclaro,
   },
 
   /* Filtros com Scroll Horizontal */
@@ -99,27 +99,27 @@ export const styles = StyleSheet.create({
   },
 
   botaoAtivo: {
-    backgroundColor: "#FFA800",
+    backgroundColor: COLORS.yellow,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 12,
   },
 
   textoBotaoAtivo: {
-    color: "#FFFFFF",
+    color: COLORS.white,
     fontSize: 13,
     fontFamily: "Poppins_600SemiBold",
   },
 
   botao: {
-    backgroundColor: "#F2F2F7",
+    backgroundColor: COLORS.white,
     paddingVertical: 10,
     paddingHorizontal: 18,
     borderRadius: 12,
   },
 
   textoBotao: {
-    color: "#A0A0A5",
+    color: COLORS.cinzaclaro,
     fontSize: 13,
     fontFamily: "Poppins_400Regular",
   },
@@ -134,7 +134,7 @@ export const styles = StyleSheet.create({
   },
 
   textoSecao: {
-    color: "#2C2C2E",
+    color: COLORS.black,
     fontSize: 16,
     fontFamily: "Poppins_700Bold",
   },
@@ -144,7 +144,7 @@ export const styles = StyleSheet.create({
   },
 
   textoAdicionar: {
-    color: "#1C1B5E",
+    color: COLORS.blue,
     fontSize: 14,
     fontFamily: "Poppins_700Bold",
   },
@@ -153,19 +153,19 @@ export const styles = StyleSheet.create({
   loading: {
     marginTop: 40,
   },
-  
+
   emptyContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingTop: 40,
   },
-  
+
   emptyText: {
     marginTop: 12,
     fontSize: 14,
     fontFamily: "Poppins_400Regular",
-    color: COLORS.placeholder || "#999999",
+    color: COLORS.placeholder,
   },
 
   listContent: {
@@ -177,7 +177,7 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     padding: 16,
-    backgroundColor: COLORS.gray || "#F5F5F5",
+    backgroundColor: COLORS.gray,
     borderRadius: 12,
     marginBottom: 12,
   },
@@ -187,12 +187,12 @@ export const styles = StyleSheet.create({
   petName: {
     fontSize: 16,
     fontFamily: "Poppins_600SemiBold",
-    color: COLORS.blue || "#0D1E4C",
+    color: COLORS.blue,
   },
   petDetails: {
     fontSize: 12,
     fontFamily: "Poppins_400Regular",
-    color: COLORS.black || "#000000",
+    color: COLORS.black,
     marginTop: 2,
   },
 
@@ -202,9 +202,9 @@ export const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     height: 70,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: COLORS.white,
     paddingBottom: 10,
-    borderTopColor: "#F2F2F7",
+    borderTopColor: COLORS.white,
     borderTopWidth: 1,
   },
 
@@ -220,7 +220,7 @@ export const styles = StyleSheet.create({
     bottom: -8,
     width: 16,
     height: 3,
-    backgroundColor: "#FFA800",
+    backgroundColor: COLORS.yellow,
     borderRadius: 2,
   },
 });
