@@ -1,11 +1,4 @@
-import {
-  FontAwesome5,
-  Ionicons,
-  MaterialCommunityIcons,
-  Octicons,
-} from "@expo/vector-icons";
-import { router } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Animated,
@@ -18,6 +11,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { router } from "expo-router";
+import {
+  FontAwesome5,
+  Ionicons,
+  MaterialCommunityIcons,
+  Octicons,
+} from "@expo/vector-icons";
 
 import { COLORS } from "@/global/themes";
 import { listarMeusPets, Pet } from "@/services/pets";
@@ -28,12 +28,7 @@ import Banner1 from "@/assets/banners/banner1.png";
 import Banner2 from "@/assets/banners/banner2.png";
 import Banner3 from "@/assets/banners/banner3.png";
 import Banner4 from "@/assets/banners/banner4.png";
-
-// Hook de exemplo para obter o utilizador autenticado
-// Na vida real você pegaria isso do seu contexto de Auth ou Supabase
-const useUser = () => {
-  return { name: "Usuário" };
-};
+import * as AuthController from "@/controller/authController";
 
 const banners = [
   {
@@ -59,7 +54,7 @@ const banners = [
 ];
 
 export default function Home() {
-  const { name } = useUser();
+  const [nomeUsuario, setNomeUsuario] = useState("Usuário");
   const [indiceAtual, setIndiceAtual] = useState(0);
   const [abaAtiva, setAbaAtiva] = useState("home");
   const [filtroAtivo, setFiltroAtivo] = useState("pets");
@@ -68,12 +63,11 @@ export default function Home() {
   const [pets, setPets] = useState<Pet[]>([]);
   const [carregandoPets, setCarregandoPets] = useState(true);
 
-  const opacidade = useRef(new Animated.Value(1)).current;
+  const [opacidade] = useState(() => new Animated.Value(1));
 
   // Carrega pets da API
   async function carregarPets() {
     try {
-      setCarregandoPets(true);
       const data = await listarMeusPets();
       setPets(data || []);
     } catch {
@@ -83,10 +77,35 @@ export default function Home() {
     }
   }
 
+  // Carrega dados do usuário autenticado
+  async function carregarUsuario() {
+    try {
+      const usuario = await AuthController.carregarUsuarioAtual();
+      if (usuario?.nome) {
+        setNomeUsuario(usuario.nome);
+      }
+    } catch {
+      // Mantém fallback 'Usuário'
+    }
+  }
+
   useEffect(() => {
-    Promise.resolve().then(() => {
-      carregarPets();
-    });
+    let ativo = true;
+
+    async function inicializar() {
+      await Promise.all([
+        carregarUsuario(),
+        carregarPets(),
+      ]);
+    }
+
+    if (ativo) {
+      inicializar();
+    }
+
+    return () => {
+      ativo = false;
+    };
   }, []);
 
   // Animação de Fade automática dos banners
@@ -110,7 +129,7 @@ export default function Home() {
     return () => clearInterval(intervalo);
   }, [opacidade]);
 
-  const primeiroNome = name ? name.split(" ")[0] : "Usuário";
+  const primeiroNome = nomeUsuario ? nomeUsuario.trim().split(" ")[0] : "Usuário";
 
   return (
     <SafeAreaView style={styles.container}>

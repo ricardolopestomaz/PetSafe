@@ -1,10 +1,50 @@
-import { Redirect } from 'expo-router';
-import { Platform } from 'react-native';
+import { useEffect, useState } from "react";
+import { ActivityIndicator, View } from "react-native";
+import { Redirect } from "expo-router";
+import { supabase } from "@/lib/supabaseClient";
+import { COLORS } from "@/global/themes";
+import { isAppOrMobileDevice } from "@/lib/device";
 
 export default function Index() {
-  if (Platform.OS === 'web') {
-    return <Redirect href={'/web' as any} />; // O Expo Router assume o index de (web) na web se configurado, ou use o caminho direto abaixo
+  const [destino, setDestino] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function checarSessao() {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (session) {
+          setDestino("/(tabs)");
+        } else {
+          // O Onboarding só deve aparecer se for no APP / CELULAR
+          const isMobile = isAppOrMobileDevice();
+          setDestino(isMobile ? "/(auth)/onboarding" : "/(auth)/login");
+        }
+      } catch {
+        const isMobile = isAppOrMobileDevice();
+        setDestino(isMobile ? "/(auth)/onboarding" : "/(auth)/login");
+      }
+    }
+
+    checarSessao();
+  }, []);
+
+  if (!destino) {
+    return (
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: COLORS.blue,
+        }}
+      >
+        <ActivityIndicator size="large" color={COLORS.yellow} />
+      </View>
+    );
   }
-  
-  return <Redirect href={'/mobile' as any} />;
+
+  return <Redirect href={destino as any} />;
 }
