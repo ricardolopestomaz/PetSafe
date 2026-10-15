@@ -18,6 +18,10 @@ if (!isValidUrl || !envKey) {
   );
   envUrl = 'https://placeholder.supabase.co';
   envKey = 'placeholder-key';
+} else if (envKey.startsWith('sb_secret_')) {
+  console.error(
+    '[Supabase] ATENÇÃO: A chave configurada no .env é a chave SECRETA (sb_secret_...). O navegador bloqueia o uso de chaves secretas ("Forbidden use of secret API key in browser"). Use a chave "anon" / "publishable" no .env.'
+  );
 }
 
 export const supabase = createClient(

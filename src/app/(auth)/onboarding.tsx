@@ -1,79 +1,189 @@
-import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { Image, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
-const images = [
-  require("../../assets/images/onboarding-dog-1.png"),
-  require("../../assets/images/onboarding-cat-1.png"),
-  require("../../assets/images/onboarding-dog-2.png"),
-  require("../../assets/images/onboarding-cat-2.png"),
+import { COLORS } from "@/global/themes";
+import { PetSafeLogo } from "@/components/PetSafeLogo";
+import { isAppOrMobileDevice } from "@/lib/device";
+
+// Imagens originais do onboarding cobrindo a tela
+const slides = [
+  {
+    image: require("../../assets/images/onboarding-dog-1.png"),
+    title: "Encontre seu pet com facilidade",
+    description:
+      "Com a medalhinha PetSafe, quem encontrar seu pet poderá acessar suas informações e entrar em contato com você.",
+  },
+  {
+    image: require("../../assets/images/onboarding-cat-1.png"),
+    title: "Localização em tempo real",
+    description:
+      "Receba no smartphone o local exato com coordenadas no momento em que a medalha QR Code ou NFC for lida.",
+  },
+  {
+    image: require("../../assets/images/onboarding-dog-2.png"),
+    title: "Vacinas e consultas organizadas",
+    description:
+      "Mantenha carteira de vacinação digital, controle de vermífugos e dados do veterinário sempre acessíveis.",
+  },
+  {
+    image: require("../../assets/images/onboarding-cat-2.png"),
+    title: "Proteção completa para o seu amigo",
+    description:
+      "Conecte-se a uma rede moderna de tutores para garantir o bem-estar e a tranquilidade de quem você ama.",
+  },
 ];
 
 export default function Onboarding() {
   const router = useRouter();
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // O Onboarding só deve aparecer se for no APP / CELULAR
+  const isMobile = isAppOrMobileDevice();
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentIndex((index) => {
-        return (index + 1) % images.length;
-      });
-    }, 3000);
+    if (!isMobile) {
+      router.replace("/(auth)/login");
+    }
+  }, [isMobile, router]);
 
-    return () => clearInterval(interval);
-  }, []);
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Sem mudança automática: o slide só muda quando o usuário clica em "Continuar"
+  function handleContinuar() {
+    if (currentIndex < slides.length - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    } else {
+      router.replace("/(auth)/login");
+    }
+  }
+
+  // Se estiver em ambiente desktop/notebook, não renderiza o onboarding e redireciona
+  if (!isMobile) {
+    return null;
+  }
+
+  const slideAtual = slides[currentIndex];
 
   return (
     <View style={style.container}>
+      {/* Imagem de Fundo Cobrindo Toda a Tela */}
       <Image
-        source={images[currentIndex]}
+        source={slideAtual.image}
         style={style.image}
-        resizeMode="contain"
+        resizeMode="cover"
       />
 
-      <View style={style.card}>
-        <Text style={style.logo}>
-          Pet<Text style={style.safeColor}>Safe</Text>
-        </Text>
-
-        <View style={style.indicators}>
-          {images.map((_, index) => (
-            <View
-              key={index}
-              style={[
-                style.indicator,
-                index === currentIndex && style.activeIndicator,
-              ]}
-            />
-          ))}
+      <SafeAreaView style={style.safeArea} pointerEvents="box-none">
+        {/* Botão Superior "Pular" */}
+        <View style={style.topBar}>
+          <Pressable
+            style={style.skipBadge}
+            onPress={() => router.replace("/(auth)/login")}
+            hitSlop={8}
+          >
+            <Text style={style.skipText}>Pular</Text>
+          </Pressable>
         </View>
-        <Text style={style.title}>Encontre seu pet com facilidade</Text>
-        <Text style={style.description}>
-          Com a medalhinha PetSafe, quem encontrar seu pet poderá acessar suas
-          informações e entrar em contato com você.
-        </Text>
-        <TouchableOpacity
-          style={style.button}
-          onPress={() => router.push("/(auth)/login")}
-        >
-          <Text style={style.buttonText}>Continuar</Text>
-          <Text style={style.arrow}>›</Text>
-        </TouchableOpacity>
-      </View>
+
+        {/* Card Inferior Mobile */}
+        <View style={style.card}>
+          {/* Logo Original de Texto sem Ícone ao Lado */}
+          <PetSafeLogo size="md" style={style.logoMargin} />
+
+          {/* Indicadores de Slide */}
+          <View style={style.indicatorsRow}>
+            {slides.map((_, index) => (
+              <View
+                key={index}
+                style={[
+                  style.indicator,
+                  index === currentIndex && style.activeIndicator,
+                ]}
+              />
+            ))}
+          </View>
+
+          {/* Título e Descrição do Slide */}
+          <Text style={style.title}>{slideAtual.title}</Text>
+          <Text style={style.description}>{slideAtual.description}</Text>
+
+          {/* Botão de Avançar Manual - muda SOMENTE ao clicar em Continuar */}
+          <Pressable
+            style={({ pressed }) => [
+              style.primaryButton,
+              pressed && style.buttonPressed,
+            ]}
+            onPress={handleContinuar}
+          >
+            <Text style={style.primaryButtonText}>Continuar</Text>
+            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+          </Pressable>
+
+          {/* Link para Login */}
+          <Pressable
+            onPress={() => router.replace("/(auth)/login")}
+            hitSlop={6}
+            style={style.secondaryLink}
+          >
+            <Text style={style.secondaryLinkText}>
+              Já tem uma conta? <Text style={style.secondaryLinkBold}>Entrar</Text>
+            </Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
     </View>
   );
 }
 
-export const style = StyleSheet.create({
+const style = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#FEB101",
   },
   image: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     width: "100%",
     height: "100%",
-    position: "absolute",
+  },
+  safeArea: {
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  skipBadge: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 100,
+    backgroundColor: "rgba(255, 255, 255, 0.88)",
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.06)",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  skipText: {
+    fontSize: 12,
+    fontFamily: "Poppins_600SemiBold",
+    color: "#1F2937",
   },
   card: {
     position: "absolute",
@@ -81,70 +191,88 @@ export const style = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    paddingHorizontal: 30,
-    paddingTop: 30,
-    paddingBottom: 70,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 28,
+    paddingTop: 24,
+    paddingBottom: 36,
     alignItems: "center",
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  logo: {
-    color: "#1D1E64",
-    fontSize: 22,
-    fontFamily: "Poppins_700Bold",
+  logoMargin: {
     marginBottom: 10,
   },
-  safeColor: {
-    color: "#Feb101",
-  },
-  indicators: {
+  indicatorsRow: {
     flexDirection: "row",
-    marginBottom: 10,
+    alignItems: "center",
+    marginBottom: 12,
+    gap: 6,
   },
   indicator: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#D0D0D0",
-    marginHorizontal: 3,
+    backgroundColor: "#E2E8F0",
   },
   activeIndicator: {
-    backgroundColor: "#f6d27f",
-    width: 18,
+    backgroundColor: COLORS.yellow,
+    width: 20,
   },
   title: {
-    color: "#222222",
+    color: "#111827",
     fontSize: 18,
     fontFamily: "Poppins_700Bold",
     marginBottom: 8,
     textAlign: "center",
+    letterSpacing: -0.3,
   },
   description: {
-    color: "#999999",
+    color: "#6B7280",
     fontSize: 12,
     fontFamily: "Poppins_400Regular",
     textAlign: "center",
+    lineHeight: 18,
+    paddingHorizontal: 10,
+    marginBottom: 20,
   },
-  button: {
+  primaryButton: {
     width: "100%",
-    height: 40,
-    backgroundColor: "#1D1E64",
-    borderRadius: 5,
-    marginTop: 20,
+    height: 46,
+    backgroundColor: COLORS.blue,
+    borderRadius: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+    shadowColor: COLORS.blue,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  buttonText: {
+  primaryButtonText: {
     color: "#FFFFFF",
     fontSize: 13,
     fontFamily: "Poppins_600SemiBold",
-    fontWeight: "bold",
   },
-  arrow: {
-    color: "#FFFFFF",
-    fontSize: 22,
-    position: "absolute",
-    right: 10,
+  buttonPressed: {
+    opacity: 0.85,
+    transform: [{ scale: 0.99 }],
+  },
+  secondaryLink: {
+    marginTop: 14,
+  },
+  secondaryLinkText: {
+    fontSize: 12,
+    fontFamily: "Poppins_400Regular",
+    color: "#6B7280",
+  },
+  secondaryLinkBold: {
+    fontFamily: "Poppins_700Bold",
+    color: COLORS.blue,
   },
 });
