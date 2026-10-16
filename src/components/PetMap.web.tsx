@@ -1,24 +1,28 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Animated,
   FlatList,
   Linking,
   Platform,
+  Pressable,
   Share,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { COLORS } from "@/global/themes";
+import { COLORS, DS } from "@/global/themes";
 import { Leitura } from "@/services/leituras";
 import {
   CAT_SVG_STRING,
   DOG_SVG_STRING,
   PetIconBySpecies,
 } from "@/components/PetIcons";
+import { CardBadgeContainer, TiltCard } from "@/components/ds";
 
 export type PetMapProps = {
   leituras: Leitura[];
@@ -131,6 +135,9 @@ export default function PetMapWeb({
   <title>PetSafe Mapa Interativo</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { box-sizing: border-box; }
     html, body, #map {
@@ -139,7 +146,7 @@ export default function PetMapWeb({
       margin: 0;
       padding: 0;
       background-color: #F3F4F6;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
     /* Marcador Customizado com Pegada de Cachorro */
@@ -673,104 +680,163 @@ export default function PetMapWeb({
               data={leituras}
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.carouselLista}
-          renderItem={({ item, index }) => {
-            const isAtivo = itemAtivo?.id === item.id;
-            const isLatest = index === 0;
-            const numOrdem = leituras.length - index;
+              renderItem={({ item, index }) => {
+                const isAtivo = itemAtivo?.id === item.id;
+                const isLatest = index === 0;
+                const numOrdem = leituras.length - index;
 
-            return (
-              <TouchableOpacity
-                style={[styles.cardScan, isAtivo && styles.cardScanAtivo]}
-                onPress={() => selecionarLeitura(item)}
-                activeOpacity={0.85}
-              >
-                <View style={styles.cardScanTop}>
-                  <View
-                    style={[
-                      styles.badgeOrdem,
-                      isLatest && styles.badgeOrdemLatest,
-                      isAtivo && styles.badgeOrdemAtivo,
+                return (
+                  <TiltCard
+                    variant={isAtivo ? "gradient" : "surface"}
+                    onPress={() => selecionarLeitura(item)}
+                    style={{ width: 250 }}
+                    contentStyle={[
+                      styles.cardScanInner,
+                      !isAtivo && styles.cardScanInactive,
                     ]}
+                    padding={12}
+                    accessibilityLabel={`Escaneamento #${numOrdem} de ${item.pet?.nome || "PetSafe"}`}
                   >
-                    <Ionicons
-                      name={isLatest ? "star" : "location"}
-                      size={12}
-                      color={isLatest ? COLORS.blue : COLORS.white}
-                    />
-                    <Text
-                      style={[
-                        styles.badgeOrdemTexto,
-                        isLatest && styles.badgeOrdemTextoLatest,
-                      ]}
-                    >
-                      {isLatest ? "#1 Mais Recente" : `#${numOrdem}`}
-                    </Text>
-                  </View>
+                    <View style={styles.cardScanTop}>
+                      <View
+                        style={[
+                          styles.badgeOrdem,
+                          isAtivo
+                            ? styles.badgeOrdemAtivoAAA
+                            : isLatest
+                            ? styles.badgeOrdemLatest
+                            : styles.badgeOrdemNormal,
+                        ]}
+                      >
+                        <Ionicons
+                          name={isLatest ? "star" : "location"}
+                          size={12}
+                          color={isAtivo ? "#FFFFFF" : isLatest ? COLORS.blue : COLORS.white}
+                        />
+                        <Text
+                          style={[
+                            styles.badgeOrdemTexto,
+                            isAtivo
+                              ? styles.badgeOrdemTextoAAA
+                              : isLatest
+                              ? styles.badgeOrdemTextoLatest
+                              : null,
+                          ]}
+                        >
+                          {isLatest ? "#1 Mais Recente" : `#${numOrdem}`}
+                        </Text>
+                      </View>
 
-                  <Text style={styles.tempoRelativo}>
-                    {formatarHora(item.criado_em)}
-                  </Text>
-                </View>
+                      <Text
+                        style={[
+                          styles.tempoRelativo,
+                          isAtivo && styles.tempoRelativoAAA,
+                        ]}
+                      >
+                        {formatarHora(item.criado_em)}
+                      </Text>
+                    </View>
 
-                <View style={styles.cardScanMeio}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <PetIconBySpecies
-                      especie={item.pet?.especie}
-                      size={18}
-                      fallbackColor={COLORS.blue}
-                    />
-                    <Text style={styles.petNomeCard}>
-                      {item.pet?.nome || "PetSafe"}
-                    </Text>
-                  </View>
-                  <Text style={styles.enderecoCard} numberOfLines={2}>
-                    {item.endereco_aproximado ||
-                      `${item.bairro || ""} Palmas`.trim()}
-                  </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                    <Ionicons name="time-outline" size={12} color={COLORS.roxoclaro} />
-                    <Text style={styles.dataExataCard}>
-                      {new Date(item.criado_em).toLocaleString("pt-BR")}
-                    </Text>
-                  </View>
-                </View>
+                    <View style={styles.cardScanMeio}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        {isAtivo ? (
+                          <CardBadgeContainer style={styles.miniIconBadge}>
+                            <PetIconBySpecies
+                              especie={item.pet?.especie}
+                              size={16}
+                              fallbackColor="#FFFFFF"
+                            />
+                          </CardBadgeContainer>
+                        ) : (
+                          <PetIconBySpecies
+                            especie={item.pet?.especie}
+                            size={18}
+                            fallbackColor={COLORS.blue}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.petNomeCard,
+                            isAtivo && styles.petNomeCardAAA,
+                          ]}
+                        >
+                          {item.pet?.nome || "PetSafe"}
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.enderecoCard,
+                          isAtivo && styles.enderecoCardAAA,
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {item.endereco_aproximado ||
+                          `${item.bairro || ""} Palmas`.trim()}
+                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                        <Ionicons
+                          name="time-outline"
+                          size={12}
+                          color={isAtivo ? "rgba(255, 255, 255, 0.88)" : COLORS.roxoclaro}
+                        />
+                        <Text
+                          style={[
+                            styles.dataExataCard,
+                            isAtivo && styles.dataExataCardAAA,
+                          ]}
+                        >
+                          {new Date(item.criado_em).toLocaleString("pt-BR")}
+                        </Text>
+                      </View>
+                    </View>
 
-                {item.lido_por_dispositivo && (
-                  <View style={styles.dispositivoWrapper}>
-                    <Ionicons
-                      name="phone-portrait-outline"
-                      size={12}
-                      color={COLORS.roxoclaro}
-                    />
-                    <Text style={styles.dispositivoTexto} numberOfLines={1}>
-                      {item.lido_por_dispositivo}
-                    </Text>
-                  </View>
-                )}
+                    {item.lido_por_dispositivo && (
+                      <View
+                        style={[
+                          styles.dispositivoWrapper,
+                          isAtivo && styles.dispositivoWrapperAAA,
+                        ]}
+                      >
+                        <Ionicons
+                          name="phone-portrait-outline"
+                          size={12}
+                          color={isAtivo ? "rgba(255, 255, 255, 0.88)" : COLORS.roxoclaro}
+                        />
+                        <Text
+                          style={[
+                            styles.dispositivoTexto,
+                            isAtivo && styles.dispositivoTextoAAA,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.lido_por_dispositivo}
+                        </Text>
+                      </View>
+                    )}
 
-                <View style={styles.botoesAcao}>
-                  <TouchableOpacity
-                    style={styles.botaoRota}
-                    onPress={() => abrirRota(item)}
-                  >
-                    <Ionicons name="navigate" size={14} color={COLORS.blue} />
-                    <Text style={styles.textoBotaoRota}>Traçar Rota</Text>
-                  </TouchableOpacity>
+                    <View style={styles.botoesAcao}>
+                      <TouchableOpacity
+                        style={[styles.botaoRota, isAtivo && styles.botaoRotaAAA]}
+                        onPress={() => abrirRota(item)}
+                      >
+                        <Ionicons name="navigate" size={14} color={COLORS.blue} />
+                        <Text style={styles.textoBotaoRota}>Traçar Rota</Text>
+                      </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.botaoCompartilhar}
-                    onPress={() => compartilharLeitura(item)}
-                  >
-                    <Ionicons
-                      name="share-social-outline"
-                      size={14}
-                      color={COLORS.blue}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+                      <TouchableOpacity
+                        style={[styles.botaoCompartilhar, isAtivo && styles.botaoCompartilharAAA]}
+                        onPress={() => compartilharLeitura(item)}
+                      >
+                        <Ionicons
+                          name="share-social-outline"
+                          size={14}
+                          color={COLORS.blue}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </TiltCard>
+                );
+              }}
         />
           )}
       </View>
@@ -977,5 +1043,62 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF2FF",
     alignItems: "center",
     justifyContent: "center",
+  },
+  cardScanInner: {
+    borderRadius: 14,
+    gap: 8,
+  },
+  cardScanInactive: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  badgeOrdemNormal: {
+    backgroundColor: COLORS.blue,
+  },
+  badgeOrdemAtivoAAA: {
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.35)",
+  },
+  badgeOrdemTextoAAA: {
+    color: "#FFFFFF",
+    fontFamily: "Poppins_700Bold",
+  },
+  tempoRelativoAAA: {
+    color: "#F1F5F9",
+    fontFamily: "Poppins_600SemiBold",
+  },
+  miniIconBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  petNomeCardAAA: {
+    color: "#FFFFFF",
+    fontFamily: "Poppins_700Bold",
+  },
+  enderecoCardAAA: {
+    color: "rgba(255, 255, 255, 0.92)",
+    fontFamily: "Poppins_500Medium",
+  },
+  dataExataCardAAA: {
+    color: "#F1F5F9",
+    fontFamily: "Poppins_400Regular",
+  },
+  dispositivoWrapperAAA: {
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+  },
+  dispositivoTextoAAA: {
+    color: "#FFFFFF",
+  },
+  botaoRotaAAA: {
+    backgroundColor: "#FFFFFF",
+  },
+  botaoCompartilharAAA: {
+    backgroundColor: "#FFFFFF",
   },
 });

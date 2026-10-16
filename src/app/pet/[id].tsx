@@ -16,6 +16,8 @@ import { COLORS, DS } from "@/global/themes";
 import { getPet, Pet } from "@/services/pets";
 import { Leitura, listarLeiturasPorPet } from "@/services/leituras";
 import PetMap from "@/components/PetMap";
+import { TiltCard } from "@/components/ds";
+import { PetIconBySpecies } from "@/components/PetIcons";
 
 const C = DS.colors;
 
@@ -85,16 +87,25 @@ export default function PetDetails() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        {/* CARD DO PET */}
-        <View style={styles.cardPet}>
+        {/* CARD DO PET (3D Tilt Effect + Contraste Padrão AAA) */}
+        <TiltCard
+          variant="gradient"
+          contentStyle={styles.cardPetContent}
+          style={styles.cardPetContainer}
+          padding={22}
+        >
           <View style={styles.avatarWrapper}>
-            <MaterialCommunityIcons name="paw" size={36} color={C.card} />
+            <PetIconBySpecies
+              especie={pet?.especie}
+              size={36}
+              fallbackColor={COLORS.white}
+            />
           </View>
           <Text style={styles.petNome}>{pet?.nome || "Pet"}</Text>
           <Text style={styles.petInfo}>
             {pet?.especie || "Espécie não informada"} • {pet?.raca || "Sem raça definida"}
           </Text>
-        </View>
+        </TiltCard>
 
         {/* SEÇÃO DO MAPA / ÚLTIMA LEITURA */}
         <View style={styles.secaoMapa}>
@@ -209,35 +220,33 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  cardPet: {
-    backgroundColor: C.surface,
-    borderRadius: DS.radius.lg,
-    padding: 20,
+  cardPetContainer: {
+    width: "100%",
+  },
+  cardPetContent: {
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: C.border,
   },
   avatarWrapper: {
     width: 68,
     height: 68,
     borderRadius: 34,
-    backgroundColor: C.cardAlt,
+    backgroundColor: C.cardBadgeBg,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: C.cardBorder,
+    borderColor: C.cardBadgeBorder,
   },
   petNome: {
-    fontSize: 20,
+    fontSize: 22,
     fontFamily: DS.font.bold,
-    color: C.text,
+    color: C.cardText,
   },
   petInfo: {
     fontSize: 13,
     fontFamily: DS.font.regular,
-    color: C.textMuted,
-    marginTop: 2,
+    color: C.cardTextMuted,
+    marginTop: 3,
   },
   secaoMapa: {
     backgroundColor: C.surface,

@@ -22,6 +22,9 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.ricardo.tomaz.PetSafefront"
     },
+    "androidNavigationBar": {
+      "visible": "sticky-immersive"
+    },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"

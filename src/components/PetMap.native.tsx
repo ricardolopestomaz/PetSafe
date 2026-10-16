@@ -17,6 +17,7 @@ import * as Location from "expo-location";
 import { COLORS } from "@/global/themes";
 import { Leitura } from "@/services/leituras";
 import { PetIconBySpecies } from "@/components/PetIcons";
+import { CardBadgeContainer, TiltCard } from "@/components/ds";
 
 export type PetMapProps = {
   leituras: Leitura[];
@@ -388,108 +389,168 @@ export default function PetMapNative({
               data={leituras}
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.carouselLista}
-          renderItem={({ item, index }) => {
-            const isAtivo = itemAtivo?.id === item.id;
-            const isLatest = index === 0;
-            const numOrdem = leituras.length - index;
+              renderItem={({ item, index }) => {
+                const isAtivo = itemAtivo?.id === item.id;
+                const isLatest = index === 0;
+                const numOrdem = leituras.length - index;
 
-            return (
-              <TouchableOpacity
-                style={[styles.cardScan, isAtivo && styles.cardScanAtivo]}
-                onPress={() => {
-                  setItemAtivoManual(item);
-                  if (onSelecionarLeitura) onSelecionarLeitura(item);
-                  centralizarEmLeitura(item);
-                }}
-                activeOpacity={0.85}
-              >
-                <View style={styles.cardScanTop}>
-                  <View
-                    style={[
-                      styles.badgeOrdemCard,
-                      isLatest && styles.badgeOrdemCardLatest,
+                return (
+                  <TiltCard
+                    variant={isAtivo ? "gradient" : "surface"}
+                    onPress={() => {
+                      setItemAtivoManual(item);
+                      if (onSelecionarLeitura) onSelecionarLeitura(item);
+                      centralizarEmLeitura(item);
+                    }}
+                    style={{ width: 250 }}
+                    contentStyle={[
+                      styles.cardScanInner,
+                      !isAtivo && styles.cardScanInactive,
                     ]}
+                    padding={12}
+                    accessibilityLabel={`Escaneamento #${numOrdem} de ${item.pet?.nome || "PetSafe"}`}
                   >
-                    <Ionicons
-                      name={isLatest ? "star" : "location"}
-                      size={12}
-                      color={isLatest ? COLORS.blue : COLORS.white}
-                    />
-                    <Text
-                      style={[
-                        styles.badgeOrdemCardTexto,
-                        isLatest && styles.badgeOrdemCardTextoLatest,
-                      ]}
-                    >
-                      {isLatest ? "#1 Mais Recente" : `#${numOrdem}`}
-                    </Text>
-                  </View>
+                    <View style={styles.cardScanTop}>
+                      <View
+                        style={[
+                          styles.badgeOrdemCard,
+                          isAtivo
+                            ? styles.badgeOrdemAtivoAAA
+                            : isLatest
+                            ? styles.badgeOrdemCardLatest
+                            : styles.badgeOrdemCardNormal,
+                        ]}
+                      >
+                        <Ionicons
+                          name={isLatest ? "star" : "location"}
+                          size={12}
+                          color={isAtivo ? "#FFFFFF" : isLatest ? COLORS.blue : COLORS.white}
+                        />
+                        <Text
+                          style={[
+                            styles.badgeOrdemCardTexto,
+                            isAtivo
+                              ? styles.badgeOrdemTextoAAA
+                              : isLatest
+                              ? styles.badgeOrdemCardTextoLatest
+                              : null,
+                          ]}
+                        >
+                          {isLatest ? "#1 Mais Recente" : `#${numOrdem}`}
+                        </Text>
+                      </View>
 
-                  <Text style={styles.tempoRelativoCard}>
-                    {formatarHora(item.criado_em)}
-                  </Text>
-                </View>
+                      <Text
+                        style={[
+                          styles.tempoRelativoCard,
+                          isAtivo && styles.tempoRelativoAAA,
+                        ]}
+                      >
+                        {formatarHora(item.criado_em)}
+                      </Text>
+                    </View>
 
-                <View style={styles.cardScanMeio}>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                    <PetIconBySpecies
-                      especie={item.pet?.especie}
-                      size={18}
-                      fallbackColor={COLORS.blue}
-                    />
-                    <Text style={styles.petNomeCard}>
-                      {item.pet?.nome || "PetSafe"}
-                    </Text>
-                  </View>
-                  <Text style={styles.enderecoCard} numberOfLines={2}>
-                    {item.endereco_aproximado ||
-                      `${item.bairro || ""} ${item.cidade || ""}`.trim() ||
-                      `Lat: ${item.latitude.toFixed(4)}, Long: ${item.longitude.toFixed(4)}`}
-                  </Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
-                    <Ionicons name="time-outline" size={12} color={COLORS.roxoclaro} />
-                    <Text style={styles.dataExataCard}>
-                      {new Date(item.criado_em).toLocaleString("pt-BR")}
-                    </Text>
-                  </View>
-                </View>
+                    <View style={styles.cardScanMeio}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                        {isAtivo ? (
+                          <CardBadgeContainer style={styles.miniIconBadge}>
+                            <PetIconBySpecies
+                              especie={item.pet?.especie}
+                              size={16}
+                              fallbackColor="#FFFFFF"
+                            />
+                          </CardBadgeContainer>
+                        ) : (
+                          <PetIconBySpecies
+                            especie={item.pet?.especie}
+                            size={18}
+                            fallbackColor={COLORS.blue}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.petNomeCard,
+                            isAtivo && styles.petNomeCardAAA,
+                          ]}
+                        >
+                          {item.pet?.nome || "PetSafe"}
+                        </Text>
+                      </View>
+                      <Text
+                        style={[
+                          styles.enderecoCard,
+                          isAtivo && styles.enderecoCardAAA,
+                        ]}
+                        numberOfLines={2}
+                      >
+                        {item.endereco_aproximado ||
+                          `${item.bairro || ""} ${item.cidade || ""}`.trim() ||
+                          `Lat: ${item.latitude.toFixed(4)}, Long: ${item.longitude.toFixed(4)}`}
+                      </Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                        <Ionicons
+                          name="time-outline"
+                          size={12}
+                          color={isAtivo ? "rgba(255, 255, 255, 0.88)" : COLORS.roxoclaro}
+                        />
+                        <Text
+                          style={[
+                            styles.dataExataCard,
+                            isAtivo && styles.dataExataCardAAA,
+                          ]}
+                        >
+                          {new Date(item.criado_em).toLocaleString("pt-BR")}
+                        </Text>
+                      </View>
+                    </View>
 
-                {item.lido_por_dispositivo && (
-                  <View style={styles.dispositivoWrapper}>
-                    <Ionicons
-                      name="phone-portrait-outline"
-                      size={12}
-                      color={COLORS.roxoclaro}
-                    />
-                    <Text style={styles.dispositivoTexto} numberOfLines={1}>
-                      {item.lido_por_dispositivo}
-                    </Text>
-                  </View>
-                )}
+                    {item.lido_por_dispositivo && (
+                      <View
+                        style={[
+                          styles.dispositivoWrapper,
+                          isAtivo && styles.dispositivoWrapperAAA,
+                        ]}
+                      >
+                        <Ionicons
+                          name="phone-portrait-outline"
+                          size={12}
+                          color={isAtivo ? "rgba(255, 255, 255, 0.88)" : COLORS.roxoclaro}
+                        />
+                        <Text
+                          style={[
+                            styles.dispositivoTexto,
+                            isAtivo && styles.dispositivoTextoAAA,
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.lido_por_dispositivo}
+                        </Text>
+                      </View>
+                    )}
 
-                <View style={styles.botoesAcao}>
-                  <TouchableOpacity
-                    style={styles.botaoRota}
-                    onPress={() => abrirNoMapaExterno(item)}
-                  >
-                    <Ionicons name="navigate" size={14} color={COLORS.blue} />
-                    <Text style={styles.textoBotaoRota}>Traçar Rota</Text>
-                  </TouchableOpacity>
+                    <View style={styles.botoesAcao}>
+                      <TouchableOpacity
+                        style={[styles.botaoRota, isAtivo && styles.botaoRotaAAA]}
+                        onPress={() => abrirNoMapaExterno(item)}
+                      >
+                        <Ionicons name="navigate" size={14} color={COLORS.blue} />
+                        <Text style={styles.textoBotaoRota}>Traçar Rota</Text>
+                      </TouchableOpacity>
 
-                  <TouchableOpacity
-                    style={styles.botaoCompartilhar}
-                    onPress={() => compartilharLeitura(item)}
-                  >
-                    <Ionicons
-                      name="share-social-outline"
-                      size={14}
-                      color={COLORS.blue}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
+                      <TouchableOpacity
+                        style={[styles.botaoCompartilhar, isAtivo && styles.botaoCompartilharAAA]}
+                        onPress={() => compartilharLeitura(item)}
+                      >
+                        <Ionicons
+                          name="share-social-outline"
+                          size={14}
+                          color={COLORS.blue}
+                        />
+                      </TouchableOpacity>
+                    </View>
+                  </TiltCard>
+                );
+              }}
         />
           )}
       </View>
@@ -781,5 +842,62 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF2FF",
     alignItems: "center",
     justifyContent: "center",
+  },
+  cardScanInner: {
+    borderRadius: 14,
+    gap: 8,
+  },
+  cardScanInactive: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  badgeOrdemCardNormal: {
+    backgroundColor: COLORS.blue,
+  },
+  badgeOrdemAtivoAAA: {
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.35)",
+  },
+  badgeOrdemTextoAAA: {
+    color: "#FFFFFF",
+    fontFamily: "Poppins_700Bold",
+  },
+  tempoRelativoAAA: {
+    color: "#F1F5F9",
+    fontFamily: "Poppins_600SemiBold",
+  },
+  miniIconBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  petNomeCardAAA: {
+    color: "#FFFFFF",
+    fontFamily: "Poppins_700Bold",
+  },
+  enderecoCardAAA: {
+    color: "rgba(255, 255, 255, 0.92)",
+    fontFamily: "Poppins_500Medium",
+  },
+  dataExataCardAAA: {
+    color: "#F1F5F9",
+    fontFamily: "Poppins_400Regular",
+  },
+  dispositivoWrapperAAA: {
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+  },
+  dispositivoTextoAAA: {
+    color: "#FFFFFF",
+  },
+  botaoRotaAAA: {
+    backgroundColor: "#FFFFFF",
+  },
+  botaoCompartilharAAA: {
+    backgroundColor: "#FFFFFF",
   },
 });

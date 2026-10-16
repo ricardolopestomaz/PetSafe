@@ -26,7 +26,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { listarMeusPets, Pet } from "@/services/pets";
 import { Leitura, listarTodasLeituras } from "@/services/leituras";
 import { styles } from "@/styles/homeStyles";
-import { SquishyPressable, StaggerFadeItem } from "@/components/ds";
+import { SquishyPressable, StaggerFadeItem, TiltCard } from "@/components/ds";
 import RodapeNav, { RodapeAba } from "@/components/RodapeNav";
 import * as AuthController from "@/controller/authController";
 
@@ -410,24 +410,59 @@ export default function Home() {
                     </SquishyPressable>
                   </View>
 
-                  {/* BANNER DE ACESSO AO MAPA */}
-                  <SquishyPressable
-                    style={styles.bannerMapaBotao}
+                  {/* BANNER DE ACESSO AO MAPA (3D Tilt Effect + Contraste Padrão AAA) */}
+                  <TiltCard
+                    variant="gradient"
+                    style={{ marginBottom: 16 }}
+                    contentStyle={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                    }}
+                    padding={16}
                     onPress={() => router.push("/mapa" as any)}
                   >
                     <View style={styles.bannerMapaIconeTexto}>
-                      <Ionicons name="map" size={24} color={DS.colors.brand} />
+                      <View
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          backgroundColor: "rgba(255, 255, 255, 0.2)",
+                          borderWidth: 1,
+                          borderColor: "rgba(255, 255, 255, 0.28)",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Ionicons name="map" size={22} color="#FFFFFF" />
+                      </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={styles.bannerMapaTitulo}>
+                        <Text
+                          style={[
+                            styles.bannerMapaTitulo,
+                            { color: "#FFFFFF", fontFamily: "Poppins_700Bold" },
+                          ]}
+                        >
                           Mapa Interativo de Leituras
                         </Text>
-                        <Text style={styles.bannerMapaSubtitulo}>
+                        <Text
+                          style={[
+                            styles.bannerMapaSubtitulo,
+                            {
+                              color: "rgba(255, 255, 255, 0.92)",
+                              fontFamily: "Poppins_400Regular",
+                              marginTop: 2,
+                            },
+                          ]}
+                        >
                           Explore todos os locais onde as tags foram lidas
                         </Text>
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color={DS.colors.brand} />
-                  </SquishyPressable>
+                    <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                  </TiltCard>
                 </>
               )}
 
