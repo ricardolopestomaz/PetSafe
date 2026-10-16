@@ -18,7 +18,7 @@ import { isAppOrMobileDevice } from "@/lib/device";
 // Imagens originais do onboarding cobrindo a tela
 const slides = [
   {
-    image: require("../../assets/images/onboarding-dog-1.png"),
+    image: require("../../assets/images/onboarding-dog-1.jpg"),
     title: "Encontre seu pet com facilidade",
     description:
       "Com a medalhinha PetSafe, quem encontrar seu pet poderá acessar suas informações e entrar em contato com você.",
@@ -30,7 +30,7 @@ const slides = [
       "Receba no smartphone o local exato com coordenadas no momento em que a medalha QR Code ou NFC for lida.",
   },
   {
-    image: require("../../assets/images/onboarding-dog-2.png"),
+    image: require("../../assets/images/onboarding-dog-2.jpg"),
     title: "Vacinas e consultas organizadas",
     description:
       "Mantenha carteira de vacinação digital, controle de vermífugos e dados do veterinário sempre acessíveis.",
