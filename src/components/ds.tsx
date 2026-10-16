@@ -238,9 +238,9 @@ type ButtonProps = {
  * pulso contínuo e sutil na sombra e reação dinâmica no ícone ao passar o mouse.
  */
 export function PrimaryButton({ label, onPress, loading, disabled, iconRight, style }: ButtonProps) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const iconTranslateX = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+  const [iconTranslateX] = useState(() => new Animated.Value(0));
+  const [pulseAnim] = useState(() => new Animated.Value(0));
   const isHovered = useRef(false);
 
   useEffect(() => {
@@ -381,9 +381,9 @@ export function PrimaryButton({ label, onPress, loading, disabled, iconRight, st
  * "Squishy" ao toque e reação contextual ao passar o mouse.
  */
 export function SecondaryButton({ label, onPress, loading, disabled, icon, style }: ButtonProps) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const iconTranslateX = useRef(new Animated.Value(0)).current;
-  const iconRotate = useRef(new Animated.Value(0)).current;
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+  const [iconTranslateX] = useState(() => new Animated.Value(0));
+  const [iconRotate] = useState(() => new Animated.Value(0));
   const isHovered = useRef(false);
 
   const handlePressIn = () => {
@@ -523,8 +523,8 @@ export function SquishyPressable({
   accessibilityRole?: "button";
   hitSlop?: any;
 }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const animValue = useRef(new Animated.Value(0)).current;
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+  const [animValue] = useState(() => new Animated.Value(0));
   const [hovered, setHovered] = useState(false);
 
   const handlePressIn = () => {

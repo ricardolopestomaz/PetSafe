@@ -1,6 +1,5 @@
 import { supabase } from "@/lib/supabase";
 import { LeituraDTO, RegistrarLeituraPayload } from "@/@types/mapa";
-import { Pet } from "./pets";
 
 export type Leitura = LeituraDTO;
 export type { LeituraDTO, RegistrarLeituraPayload };

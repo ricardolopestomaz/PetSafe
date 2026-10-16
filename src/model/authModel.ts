@@ -61,6 +61,44 @@ export async function loginComGoogle() {
       const searchPart = urlCompleta.split('?')[1];
       const params = new URLSearchParams(hashPart || searchPart || '');
 
+      // 1. Verifica se houve erro retornado pelo Supabase ou Google
+      const errorDesc = params.get('error_description') || params.get('error');
+      if (errorDesc) {
+        const descDecodificada = decodeURIComponent(errorDesc.replace(/\+/g, ' '));
+        if (
+          descDecodificada.toLowerCase().includes('redirect_uri') ||
+          descDecodificada.toLowerCase().includes('not_whitelisted') ||
+          descDecodificada.toLowerCase().includes('redirect url')
+        ) {
+          return {
+            sucesso: false,
+            mensagem: `URL de retorno não autorizada no Supabase (${redirectUrl}). Adicione "${redirectUrl}", "exp://**" e "petsafefront://**" nas "Redirect URLs" do painel do Supabase.`,
+          };
+        }
+        return {
+          sucesso: false,
+          mensagem: descDecodificada,
+        };
+      }
+
+      // 2. Fluxo PKCE (padrão Supabase v2): troca o código de autorização por sessão
+      const code = params.get('code');
+      if (code) {
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.exchangeCodeForSession(code);
+
+        if (sessionError) {
+          return { sucesso: false, mensagem: sessionError.message };
+        }
+
+        if (sessionData?.user) {
+          await sincronizarUsuario(sessionData.user);
+        }
+
+        return { sucesso: true, data: sessionData };
+      }
+
+      // 3. Fluxo Implícito (caso venham tokens diretamente)
       const accessToken = params.get('access_token');
       const refreshToken = params.get('refresh_token');
 
@@ -75,7 +113,7 @@ export async function loginComGoogle() {
           return { sucesso: false, mensagem: sessionError.message };
         }
 
-        if (sessionData.user) {
+        if (sessionData?.user) {
           await sincronizarUsuario(sessionData.user);
         }
 

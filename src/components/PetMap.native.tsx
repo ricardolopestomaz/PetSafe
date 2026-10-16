@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Polyline, Region } from "react-native-maps";
+import { WebView } from "react-native-webview";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 
@@ -18,6 +18,7 @@ import { COLORS } from "@/global/themes";
 import { Leitura } from "@/services/leituras";
 import { PetIconBySpecies } from "@/components/PetIcons";
 import { CardBadgeContainer, TiltCard } from "@/components/ds";
+import { generateLeafletHtml } from "./leafletHtml";
 
 export type PetMapProps = {
   leituras: Leitura[];
@@ -38,89 +39,85 @@ export default function PetMapNative({
   mostrarControles = true,
   mostrarCarousel = true,
 }: PetMapProps) {
-  const mapRef = useRef<MapView>(null);
+  const webViewRef = useRef<WebView>(null);
   const listRef = useRef<FlatList>(null);
-  const [localizacaoUsuario, setLocalizacaoUsuario] =
-    useState<Location.LocationObjectCoords | null>(null);
   const [obtendoLocal, setObtendoLocal] = useState(false);
   const [recolhido, setRecolhido] = useState(false);
+  const [tipoVisualizacao, setTipoVisualizacao] = useState<"padrao" | "satelite">("padrao");
   const [itemAtivoManual, setItemAtivoManual] = useState<Leitura | null>(null);
+
   const itemAtivo =
     leituraSelecionada ??
     itemAtivoManual ??
     (leituras.length > 0 ? leituras[0] : null);
 
-  // Região inicial padrão
-  const defaultRegion: Region = {
-    latitude: leituras.length > 0 ? leituras[0].latitude : -10.1843,
-    longitude: leituras.length > 0 ? leituras[0].longitude : -48.3336,
-    latitudeDelta: 0.04,
-    longitudeDelta: 0.04,
-  };
-
+  // Sincroniza quando leituraSelecionada mudar externamente
   useEffect(() => {
     if (leituraSelecionada) {
-      centralizarEmLeitura(leituraSelecionada);
+      enviarComandoParaMapa("SELECT_SCAN", {
+        id: leituraSelecionada.id,
+        lat: leituraSelecionada.latitude,
+        lng: leituraSelecionada.longitude,
+      });
       const idx = leituras.findIndex((l) => l.id === leituraSelecionada.id);
       if (idx >= 0 && listRef.current) {
         try {
           listRef.current.scrollToIndex({ index: idx, animated: true });
         } catch {
-          // ignora caso lista não esteja pronta
+          // ignora
         }
       }
     }
   }, [leituraSelecionada, leituras]);
 
-  // Centraliza o mapa em uma leitura específica
-  function centralizarEmLeitura(leitura: Leitura) {
-    if (mapRef.current) {
-      mapRef.current.animateToRegion(
-        {
-          latitude: leitura.latitude,
-          longitude: leitura.longitude,
-          latitudeDelta: 0.012,
-          longitudeDelta: 0.012,
-        },
-        800
-      );
-    }
+  function enviarComandoParaMapa(type: string, payload?: any) {
+    const payloadStr = JSON.stringify({ type, ...payload });
+    webViewRef.current?.injectJavaScript(`
+      (function() {
+        try {
+          if (typeof window.processarComando === 'function') {
+            window.processarComando(${payloadStr});
+          }
+        } catch(e) {}
+      })();
+      true;
+    `);
   }
 
-  // Centraliza no scan mais recente (#1)
+  const leafletHtml = useMemo(() => {
+    return generateLeafletHtml({
+      leituras,
+      activeId: itemAtivo?.id || (leituras[0]?.id ?? ""),
+      mostrarTrajeto,
+    });
+  }, [leituras, itemAtivo?.id, mostrarTrajeto]);
+
+  function selecionarLeitura(item: Leitura) {
+    setItemAtivoManual(item);
+    if (onSelecionarLeitura) onSelecionarLeitura(item);
+    enviarComandoParaMapa("SELECT_SCAN", {
+      id: item.id,
+      lat: item.latitude,
+      lng: item.longitude,
+    });
+  }
+
   function centralizarNoMaisRecente() {
     if (leituras.length > 0) {
-      const maisRecente = leituras[0];
-      setItemAtivoManual(maisRecente);
-      if (onSelecionarLeitura) onSelecionarLeitura(maisRecente);
-      centralizarEmLeitura(maisRecente);
+      selecionarLeitura(leituras[0]);
+      enviarComandoParaMapa("CENTER_LATEST");
       if (listRef.current) {
-        listRef.current.scrollToIndex({ index: 0, animated: true });
+        try {
+          listRef.current.scrollToIndex({ index: 0, animated: true });
+        } catch {}
       }
     }
   }
 
-  // Ajusta o zoom para enquadrar todos os pins
   function ajustarParaTodosOsPins() {
-    if (leituras.length === 0 || !mapRef.current) return;
-
-    if (leituras.length === 1) {
-      centralizarEmLeitura(leituras[0]);
-      return;
-    }
-
-    const coordenadas = leituras.map((l) => ({
-      latitude: l.latitude,
-      longitude: l.longitude,
-    }));
-
-    mapRef.current.fitToCoordinates(coordenadas, {
-      edgePadding: { top: 60, right: 60, bottom: 140, left: 60 },
-      animated: true,
-    });
+    enviarComandoParaMapa("FIT_ALL");
   }
 
-  // Solicita permissão e centraliza na posição atual do usuário
   async function irParaMinhaLocalizacao() {
     try {
       setObtendoLocal(true);
@@ -134,19 +131,10 @@ export default function PetMapNative({
         accuracy: Location.Accuracy.Balanced,
       });
 
-      setLocalizacaoUsuario(local.coords);
-
-      if (mapRef.current) {
-        mapRef.current.animateToRegion(
-          {
-            latitude: local.coords.latitude,
-            longitude: local.coords.longitude,
-            latitudeDelta: 0.02,
-            longitudeDelta: 0.02,
-          },
-          800
-        );
-      }
+      enviarComandoParaMapa("USER_LOCATION", {
+        lat: local.coords.latitude,
+        lng: local.coords.longitude,
+      });
     } catch (e) {
       console.warn("Erro ao obter localização:", e);
     } finally {
@@ -154,38 +142,48 @@ export default function PetMapNative({
     }
   }
 
-  // Abre aplicativo de mapas nativo externo (Google Maps / Apple Maps / Waze)
+  function alternarCamada() {
+    const nova = tipoVisualizacao === "padrao" ? "satelite" : "padrao";
+    setTipoVisualizacao(nova);
+    enviarComandoParaMapa("SET_LAYER", { layer: nova });
+  }
+
   function abrirNoMapaExterno(leitura: Leitura) {
     const lat = leitura.latitude;
     const lng = leitura.longitude;
-    const label = encodeURIComponent(
-      `PetSafe: Leitura de ${leitura.pet?.nome || "Pet"}`
-    );
-
+    const label = encodeURIComponent(leitura.pet?.nome || "PetSafe");
     const url = Platform.select({
       ios: `maps:0,0?q=${label}@${lat},${lng}`,
       android: `geo:0,0?q=${lat},${lng}(${label})`,
-      default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+      default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
     });
 
-    if (url) {
-      Linking.openURL(url).catch((err) =>
-        console.warn("Erro ao abrir rota:", err)
-      );
-    }
+    Linking.canOpenURL(url)
+      .then((supported) => {
+        if (supported) {
+          Linking.openURL(url);
+        } else {
+          Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
+        }
+      })
+      .catch(() => {
+        Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
+      });
   }
 
   async function compartilharLeitura(leitura: Leitura) {
     try {
-      const petNome = leitura.pet?.nome || "Cachorro PetSafe";
-      const texto = `📍 Localização de ${petNome}: ${
-        leitura.endereco_aproximado || "Medalha escaneada"
-      }. Veja no mapa: https://www.google.com/maps/search/?api=1&query=${
-        leitura.latitude
-      },${leitura.longitude}`;
-      await Share.share({ message: texto });
-    } catch {
-      // Ignora erro
+      const petNome = leitura.pet?.nome || "meu pet";
+      const dataStr = new Date(leitura.criado_em).toLocaleString("pt-BR");
+      const localStr = leitura.endereco_aproximado || `${leitura.bairro || ""} Palmas`.trim();
+      const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${leitura.latitude},${leitura.longitude}`;
+
+      await Share.share({
+        title: `Último Escaneamento de ${petNome}`,
+        message: `🐾 PetSafe Alerta: A medalha inteligente de ${petNome} foi escaneada em ${dataStr} nas proximidades de ${localStr}.\n\nVeja no mapa: ${mapsUrl}`,
+      });
+    } catch (err) {
+      console.warn("Erro ao compartilhar leitura:", err);
     }
   }
 
@@ -198,175 +196,114 @@ export default function PetMapNative({
     }
   }
 
-  // Coordenadas para o traçado de rota
-  const coordenadasTrajeto = leituras.map((l) => ({
-    latitude: l.latitude,
-    longitude: l.longitude,
-  }));
-
   return (
     <View style={[styles.container, style]}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={defaultRegion}
-        showsUserLocation={!!localizacaoUsuario}
-        showsMyLocationButton={false}
-      >
-        {/* LINHA DE TRAJETO ENTRE ESCANEAMENTOS */}
-        {mostrarTrajeto && coordenadasTrajeto.length > 1 && (
-          <Polyline
-            coordinates={coordenadasTrajeto}
-            strokeColor={COLORS.blue}
-            strokeWidth={3.5}
-            lineDashPattern={[8, 6]}
-          />
-        )}
-
-        {leituras.map((leitura, index) => {
-          const isAtivo = itemAtivo?.id === leitura.id;
-          const isLatest = index === 0;
-          const numOrdem = leituras.length - index;
-
-          return (
-            <Marker
-              key={leitura.id}
-              coordinate={{
-                latitude: leitura.latitude,
-                longitude: leitura.longitude,
-              }}
-              onPress={() => {
-                setItemAtivoManual(leitura);
-                if (onSelecionarLeitura) {
-                  onSelecionarLeitura(leitura);
-                }
-                centralizarEmLeitura(leitura);
-                const idx = leituras.findIndex((l) => l.id === leitura.id);
-                if (idx >= 0 && listRef.current) {
-                  try {
-                    listRef.current.scrollToIndex({
-                      index: idx,
-                      animated: true,
-                    });
-                  } catch {
-                    // ignora
+      {/* MAPA INTERATIVO (LEAFLET DENTRO DO WEBVIEW - 100% SUPORTADO NO EXPO GO) */}
+      <View style={styles.mapWrapper}>
+        <WebView
+          ref={webViewRef}
+          originWhitelist={["*"]}
+          source={{ html: leafletHtml }}
+          style={styles.map}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          geolocationEnabled={true}
+          scrollEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          showsVerticalScrollIndicator={false}
+          onMessage={(event) => {
+            try {
+              const data = JSON.parse(event.nativeEvent.data);
+              if (data.type === "MARKER_CLICKED") {
+                const id = data.id;
+                const encontrada = leituras.find((l) => l.id === id);
+                if (encontrada) {
+                  setItemAtivoManual(encontrada);
+                  if (onSelecionarLeitura) onSelecionarLeitura(encontrada);
+                  const idx = leituras.findIndex((l) => l.id === id);
+                  if (idx >= 0 && listRef.current) {
+                    try {
+                      listRef.current.scrollToIndex({ index: idx, animated: true });
+                    } catch {}
                   }
                 }
-              }}
+              }
+            } catch (_) {}
+          }}
+        />
+
+        {/* CONTROLES FLUTUANTES SOBRE O MAPA */}
+        {mostrarControles && (
+          <View style={styles.controlesFlutuantes}>
+            <TouchableOpacity
+              style={styles.botaoFlutuante}
+              onPress={centralizarNoMaisRecente}
+              accessibilityLabel="Focar no mais recente"
             >
-              <View style={styles.markerContainer}>
-                {/* Badge de ordem / Mais recente */}
-                <View
-                  style={[
-                    styles.badgePin,
-                    isLatest && styles.badgePinLatest,
-                    isAtivo && styles.badgePinAtivo,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.textoBadgePin,
-                      isLatest && styles.textoBadgePinLatest,
-                    ]}
-                  >
-                    {isLatest ? "★ #1 Recente" : `#${numOrdem}`}
-                  </Text>
-                </View>
+              <MaterialCommunityIcons
+                name="crosshairs-gps"
+                size={20}
+                color={COLORS.yellow}
+              />
+            </TouchableOpacity>
 
-                {/* Pulso de radar para o ponto mais recente */}
-                {isLatest && <View style={styles.radarPulseNative} />}
+            <TouchableOpacity
+              style={styles.botaoFlutuante}
+              onPress={ajustarParaTodosOsPins}
+              accessibilityLabel="Ver todos os pontos"
+            >
+              <MaterialCommunityIcons
+                name="image-filter-center-focus"
+                size={20}
+                color={COLORS.blue}
+              />
+            </TouchableOpacity>
 
-                <View
-                  style={[
-                    styles.markerIconWrapper,
-                    isLatest && styles.markerIconWrapperLatest,
-                    isAtivo && styles.markerIconWrapperAtivo,
-                  ]}
-                >
-                  <PetIconBySpecies
-                    especie={leitura.pet?.especie}
-                    size={isAtivo ? 20 : 16}
-                    fallbackColor={isLatest ? COLORS.blue : COLORS.white}
-                  />
-                </View>
-                <View
-                  style={[
-                    styles.markerPonta,
-                    isLatest && styles.markerPontaLatest,
-                    isAtivo && styles.markerPontaAtiva,
-                  ]}
-                />
-              </View>
-            </Marker>
-          );
-        })}
-      </MapView>
+            <TouchableOpacity
+              style={styles.botaoFlutuante}
+              onPress={irParaMinhaLocalizacao}
+              disabled={obtendoLocal}
+              accessibilityLabel="Minha localização"
+            >
+              {obtendoLocal ? (
+                <ActivityIndicator size="small" color={COLORS.blue} />
+              ) : (
+                <Ionicons name="navigate" size={18} color={COLORS.blue} />
+              )}
+            </TouchableOpacity>
 
-      {/* BOTÕES FLUTUANTES DE CONTROLE */}
-      {mostrarControles && (
-        <View style={styles.controlesFlutuantes}>
-          <TouchableOpacity
-            style={styles.botaoFlutuante}
-            onPress={centralizarNoMaisRecente}
-            accessibilityLabel="Último escaneamento"
-          >
-            <MaterialCommunityIcons
-              name="crosshairs-gps"
-              size={22}
-              color={COLORS.yellow}
-            />
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.botaoFlutuante,
+                tipoVisualizacao === "satelite" && styles.botaoFlutuanteAtivo,
+              ]}
+              onPress={alternarCamada}
+              accessibilityLabel="Alternar satélite / rua"
+            >
+              <Ionicons
+                name="layers-outline"
+                size={18}
+                color={tipoVisualizacao === "satelite" ? COLORS.white : COLORS.blue}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
 
-          <TouchableOpacity
-            style={styles.botaoFlutuante}
-            onPress={ajustarParaTodosOsPins}
-            accessibilityLabel="Ver todos os pontos"
-          >
-            <MaterialCommunityIcons
-              name="image-filter-center-focus"
-              size={22}
-              color={COLORS.blue}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.botaoFlutuante}
-            onPress={irParaMinhaLocalizacao}
-            disabled={obtendoLocal}
-            accessibilityLabel="Minha localização"
-          >
-            {obtendoLocal ? (
-              <ActivityIndicator size="small" color={COLORS.blue} />
-            ) : (
-              <Ionicons name="navigate" size={20} color={COLORS.blue} />
-            )}
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {/* CAROUSEL HORIZONTAL INFERIOR DE ÚLTIMOS ESCANEAMENTOS */}
+      {/* CAROUSEL HORIZONTAL DOS ÚLTIMOS ESCANEAMENTOS */}
       {mostrarCarousel && (
         <View style={styles.carouselContainer}>
           <TouchableOpacity
             style={styles.carouselHeader}
             onPress={() => setRecolhido(!recolhido)}
             activeOpacity={0.7}
-            accessibilityLabel={
-              recolhido
-                ? "Expandir lista de escaneamentos"
-                : "Minimizar lista de escaneamentos"
-            }
+            accessibilityLabel={recolhido ? "Expandir lista de escaneamentos" : "Minimizar lista de escaneamentos"}
           >
             <View style={styles.carouselHeaderLeft}>
-              <MaterialCommunityIcons
-                name="history"
-                size={18}
-                color={COLORS.blue}
-              />
+              <MaterialCommunityIcons name="history" size={18} color={COLORS.blue} />
               <Text style={styles.carouselTitulo}>Últimos Escaneamentos</Text>
               <Text style={styles.carouselContador}>
-                • {leituras.length}{" "}
-                {leituras.length === 1 ? "registro" : "registros"}
+                • {leituras.length} {leituras.length === 1 ? "registro" : "registros"}
               </Text>
             </View>
             <View style={styles.botaoToggleRecolhido}>
@@ -397,11 +334,7 @@ export default function PetMapNative({
                 return (
                   <TiltCard
                     variant={isAtivo ? "gradient" : "surface"}
-                    onPress={() => {
-                      setItemAtivoManual(item);
-                      if (onSelecionarLeitura) onSelecionarLeitura(item);
-                      centralizarEmLeitura(item);
-                    }}
+                    onPress={() => selecionarLeitura(item)}
                     style={{ width: 250 }}
                     contentStyle={[
                       styles.cardScanInner,
@@ -551,9 +484,9 @@ export default function PetMapNative({
                   </TiltCard>
                 );
               }}
-        />
+            />
           )}
-      </View>
+        </View>
       )}
     </View>
   );
@@ -563,140 +496,66 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     position: "relative",
+    backgroundColor: "#F3F4F6",
+  },
+  mapWrapper: {
+    flex: 1,
+    width: "100%",
+    position: "relative",
   },
   map: {
     flex: 1,
     width: "100%",
+    backgroundColor: "#F3F4F6",
   },
 
-  // Marcador customizado
-  markerContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  badgePin: {
-    backgroundColor: COLORS.blue,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    marginBottom: -4,
-    zIndex: 2,
-    borderWidth: 1,
-    borderColor: COLORS.white,
-  },
-  badgePinLatest: {
-    backgroundColor: COLORS.yellow,
-    borderColor: COLORS.blue,
-  },
-  badgePinAtivo: {
-    transform: [{ scale: 1.1 }],
-  },
-  textoBadgePin: {
-    fontSize: 9,
-    fontFamily: "Poppins_700Bold",
-    color: COLORS.white,
-  },
-  textoBadgePinLatest: {
-    color: COLORS.blue,
-  },
-  radarPulseNative: {
-    position: "absolute",
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "rgba(255, 177, 1, 0.45)",
-    top: 10,
-    zIndex: -1,
-  },
-  markerIconWrapper: {
-    backgroundColor: COLORS.blue,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2.5,
-    borderColor: COLORS.white,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  markerIconWrapperLatest: {
-    backgroundColor: COLORS.yellow,
-    borderColor: COLORS.blue,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-  },
-  markerIconWrapperAtivo: {
-    borderColor: COLORS.yellow,
-    transform: [{ scale: 1.2 }],
-    shadowOpacity: 0.45,
-  },
-  markerPonta: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: 6,
-    borderRightWidth: 6,
-    borderTopWidth: 8,
-    borderStyle: "solid",
-    backgroundColor: "transparent",
-    borderLeftColor: "transparent",
-    borderRightColor: "transparent",
-    borderTopColor: COLORS.blue,
-    marginTop: -1,
-  },
-  markerPontaLatest: {
-    borderTopColor: COLORS.yellow,
-    borderTopWidth: 9,
-  },
-  markerPontaAtiva: {
-    borderTopColor: COLORS.yellow,
-    borderTopWidth: 10,
-  },
-
-  // Controles flutuantes
+  // Controles Flutuantes
   controlesFlutuantes: {
     position: "absolute",
     right: 14,
     top: 14,
-    gap: 10,
+    gap: 8,
+    zIndex: 10,
   },
   botaoFlutuante: {
-    backgroundColor: COLORS.white,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.18,
-    shadowRadius: 4,
+    shadowOpacity: 0.15,
+    shadowRadius: 5,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  botaoFlutuanteAtivo: {
+    backgroundColor: COLORS.blue,
+    borderColor: COLORS.blue,
   },
 
   // Carousel Inferior
   carouselContainer: {
-    backgroundColor: COLORS.white,
-    borderTopWidth: 1,
-    borderTopColor: "#EAEAEA",
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
     paddingTop: 10,
-    paddingBottom: 16,
+    paddingBottom: 14,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 8,
+    shadowRadius: 8,
+    elevation: 10,
   },
   carouselHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    marginBottom: 8,
+    paddingBottom: 10,
   },
   carouselHeaderLeft: {
     flexDirection: "row",
@@ -704,12 +563,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   carouselTitulo: {
-    fontSize: 14,
-    fontFamily: "Poppins_600SemiBold",
+    fontSize: 13,
+    fontFamily: "Poppins_700Bold",
     color: COLORS.blue,
   },
   carouselContador: {
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: "Poppins_400Regular",
     color: COLORS.roxoclaro,
   },
@@ -717,10 +576,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#F0F2FA",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
   },
   textoToggleRecolhido: {
     fontSize: 11,
@@ -728,26 +583,19 @@ const styles = StyleSheet.create({
     color: COLORS.blue,
   },
   carouselLista: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     gap: 10,
   },
-  cardScan: {
-    width: 250,
-    backgroundColor: "#F9FAFB",
+
+  // Cards de Escaneamento
+  cardScanInner: {
     borderRadius: 14,
-    padding: 12,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
     gap: 8,
   },
-  cardScanAtivo: {
+  cardScanInactive: {
     backgroundColor: "#FFFFFF",
-    borderColor: COLORS.yellow,
-    shadowColor: COLORS.yellow,
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 6,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   cardScanTop: {
     flexDirection: "row",
@@ -758,13 +606,20 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: COLORS.blue,
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 12,
   },
+  badgeOrdemCardNormal: {
+    backgroundColor: COLORS.blue,
+  },
   badgeOrdemCardLatest: {
     backgroundColor: COLORS.yellow,
+  },
+  badgeOrdemAtivoAAA: {
+    backgroundColor: "rgba(255, 255, 255, 0.22)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.35)",
   },
   badgeOrdemCardTexto: {
     fontSize: 10,
@@ -774,18 +629,38 @@ const styles = StyleSheet.create({
   badgeOrdemCardTextoLatest: {
     color: COLORS.blue,
   },
+  badgeOrdemTextoAAA: {
+    color: "#FFFFFF",
+    fontFamily: "Poppins_700Bold",
+  },
   tempoRelativoCard: {
     fontSize: 11,
     fontFamily: "Poppins_600SemiBold",
     color: COLORS.yellow,
   },
+  tempoRelativoAAA: {
+    color: "#F1F5F9",
+    fontFamily: "Poppins_600SemiBold",
+  },
   cardScanMeio: {
     gap: 2,
+  },
+  miniIconBadge: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   petNomeCard: {
     fontSize: 14,
     fontFamily: "Poppins_700Bold",
     color: COLORS.blue,
+  },
+  petNomeCardAAA: {
+    color: "#FFFFFF",
+    fontFamily: "Poppins_700Bold",
   },
   enderecoCard: {
     fontSize: 12,
@@ -793,11 +668,19 @@ const styles = StyleSheet.create({
     color: "#374151",
     lineHeight: 16,
   },
+  enderecoCardAAA: {
+    color: "rgba(255, 255, 255, 0.92)",
+    fontFamily: "Poppins_500Medium",
+  },
   dataExataCard: {
     fontSize: 10,
     fontFamily: "Poppins_400Regular",
     color: COLORS.roxoclaro,
     marginTop: 2,
+  },
+  dataExataCardAAA: {
+    color: "#F1F5F9",
+    fontFamily: "Poppins_400Regular",
   },
   dispositivoWrapper: {
     flexDirection: "row",
@@ -808,11 +691,17 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     borderRadius: 6,
   },
+  dispositivoWrapperAAA: {
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
+  },
   dispositivoTexto: {
     fontSize: 10,
     fontFamily: "Poppins_400Regular",
     color: COLORS.roxoclaro,
     flex: 1,
+  },
+  dispositivoTextoAAA: {
+    color: "#FFFFFF",
   },
   botoesAcao: {
     flexDirection: "row",
@@ -830,6 +719,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 8,
   },
+  botaoRotaAAA: {
+    backgroundColor: "#FFFFFF",
+  },
   textoBotaoRota: {
     fontSize: 11,
     fontFamily: "Poppins_600SemiBold",
@@ -842,60 +734,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF2FF",
     alignItems: "center",
     justifyContent: "center",
-  },
-  cardScanInner: {
-    borderRadius: 14,
-    gap: 8,
-  },
-  cardScanInactive: {
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E5E7EB",
-  },
-  badgeOrdemCardNormal: {
-    backgroundColor: COLORS.blue,
-  },
-  badgeOrdemAtivoAAA: {
-    backgroundColor: "rgba(255, 255, 255, 0.22)",
-    borderWidth: 1,
-    borderColor: "rgba(255, 255, 255, 0.35)",
-  },
-  badgeOrdemTextoAAA: {
-    color: "#FFFFFF",
-    fontFamily: "Poppins_700Bold",
-  },
-  tempoRelativoAAA: {
-    color: "#F1F5F9",
-    fontFamily: "Poppins_600SemiBold",
-  },
-  miniIconBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  petNomeCardAAA: {
-    color: "#FFFFFF",
-    fontFamily: "Poppins_700Bold",
-  },
-  enderecoCardAAA: {
-    color: "rgba(255, 255, 255, 0.92)",
-    fontFamily: "Poppins_500Medium",
-  },
-  dataExataCardAAA: {
-    color: "#F1F5F9",
-    fontFamily: "Poppins_400Regular",
-  },
-  dispositivoWrapperAAA: {
-    backgroundColor: "rgba(255, 255, 255, 0.16)",
-  },
-  dispositivoTextoAAA: {
-    color: "#FFFFFF",
-  },
-  botaoRotaAAA: {
-    backgroundColor: "#FFFFFF",
   },
   botaoCompartilharAAA: {
     backgroundColor: "#FFFFFF",
