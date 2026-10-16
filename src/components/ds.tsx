@@ -46,16 +46,34 @@ const TILT_MAX = 6; // graus em rotateX/rotateY
 const TILT_Z = 1.5; // graus em rotateZ
 const SPRING = { stiffness: 180, damping: 14, mass: 0.8, useNativeDriver: false } as const;
 
-export function HighlightCard({
-  children,
-  style,
-  padding = 24,
-}: {
+export interface TiltCardProps {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  contentStyle?: StyleProp<ViewStyle>;
   padding?: number;
-}) {
-  // px/py: posição normalizada do ponteiro (-1..1); ativo: 0..1 (escala e sombra)
+  onPress?: () => void;
+  gradientColors?: [string, string];
+  variant?: "gradient" | "surface";
+  maxTilt?: number;
+  accessibilityLabel?: string;
+}
+
+/**
+ * Card com Efeito de Inclinação 3D (Tilt) e Padrão AAA de Acessibilidade.
+ * - Na Web (Mouse): inclina suavemente acompanhando o cursor (-6deg a 6deg, scale: 1.02).
+ * - No Mobile (Toque): reage ao toque com mola fluida no onPressIn/onPressOut.
+ */
+export function TiltCard({
+  children,
+  style,
+  contentStyle,
+  padding = 20,
+  onPress,
+  gradientColors,
+  variant = "gradient",
+  maxTilt = TILT_MAX,
+  accessibilityLabel,
+}: TiltCardProps) {
   const [px] = useState(() => new Animated.Value(0));
   const [py] = useState(() => new Animated.Value(0));
   const [ativo] = useState(() => new Animated.Value(0));
@@ -101,17 +119,32 @@ export function HighlightCard({
     };
   }, [inclinar, soltar]);
 
-  const rotateY = px.interpolate({ inputRange: [-1, 1], outputRange: [`-${TILT_MAX}deg`, `${TILT_MAX}deg`] });
-  const rotateX = py.interpolate({ inputRange: [-1, 1], outputRange: [`${TILT_MAX}deg`, `-${TILT_MAX}deg`] });
-  const rotateZ = px.interpolate({ inputRange: [-1, 1], outputRange: [`-${TILT_Z}deg`, `${TILT_Z}deg`] });
+  const rotateY = px.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [`-${maxTilt}deg`, `${maxTilt}deg`],
+  });
+  const rotateX = py.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [`${maxTilt}deg`, `-${maxTilt}deg`],
+  });
+  const rotateZ = px.interpolate({
+    inputRange: [-1, 1],
+    outputRange: [`-${TILT_Z}deg`, `${TILT_Z}deg`],
+  });
   const scale = ativo.interpolate({ inputRange: [0, 1], outputRange: [1, 1.02] });
-  const shadowOpacity = ativo.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.32] });
-  const shadowRadius = ativo.interpolate({ inputRange: [0, 1], outputRange: [12, 26] });
+  const shadowOpacity = ativo.interpolate({ inputRange: [0, 1], outputRange: [0.16, 0.35] });
+  const shadowRadius = ativo.interpolate({ inputRange: [0, 1], outputRange: [10, 24] });
   const elevation = ativo.interpolate({ inputRange: [0, 1], outputRange: [4, 12] });
+
+  const isGradient = variant === "gradient";
+  const colorsToUse = gradientColors || C.cardGradient;
 
   return (
     <Pressable
       ref={nodeRef}
+      onPress={onPress}
+      accessibilityRole={onPress ? "button" : undefined}
+      accessibilityLabel={accessibilityLabel}
       onLayout={(e: LayoutChangeEvent) => {
         tamanho.current = {
           width: Math.max(1, e.nativeEvent.layout.width),
@@ -129,29 +162,64 @@ export function HighlightCard({
       onPressOut={() => {
         if (Platform.OS !== "web") soltar();
       }}
+      style={style}
     >
       <Animated.View
         style={[
-          styles.highlightShadow,
+          isGradient ? styles.highlightShadow : styles.surfaceShadow,
           {
             shadowOpacity,
             shadowRadius,
             elevation,
-            transform: [{ perspective: 1000 }, { rotateX }, { rotateY }, { rotateZ }, { scale }],
+            transform: [
+              { perspective: 1000 },
+              { rotateX },
+              { rotateY },
+              { rotateZ },
+              { scale },
+            ],
           },
         ]}
       >
-        <LinearGradient
-          colors={C.cardGradient}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={[styles.blackCard, { padding }, style]}
-        >
-          {children}
-        </LinearGradient>
+        {isGradient ? (
+          <LinearGradient
+            colors={colorsToUse}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[styles.blackCard, { padding }, contentStyle]}
+          >
+            {children}
+          </LinearGradient>
+        ) : (
+          <View style={[styles.surfaceCard, { padding }, contentStyle]}>
+            {children}
+          </View>
+        )}
       </Animated.View>
     </Pressable>
   );
+}
+
+/**
+ * Card de destaque vivo (azul royal profundo) com texto branco de alto contraste.
+ * Efeito 3D tilt na Web e Mobile.
+ */
+export function HighlightCard(props: TiltCardProps) {
+  return <TiltCard variant="gradient" {...props} />;
+}
+
+/**
+ * Mini-container interno para ícones/badges dentro de cards escuros/gradientes,
+ * garantindo contraste máximo AAA sem poluição visual.
+ */
+export function CardBadgeContainer({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return <View style={[styles.cardBadgeContainer, style]}>{children}</View>;
 }
 
 type ButtonProps = {
@@ -170,9 +238,9 @@ type ButtonProps = {
  * pulso contínuo e sutil na sombra e reação dinâmica no ícone ao passar o mouse.
  */
 export function PrimaryButton({ label, onPress, loading, disabled, iconRight, style }: ButtonProps) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const iconTranslateX = useRef(new Animated.Value(0)).current;
-  const pulseAnim = useRef(new Animated.Value(0)).current;
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+  const [iconTranslateX] = useState(() => new Animated.Value(0));
+  const [pulseAnim] = useState(() => new Animated.Value(0));
   const isHovered = useRef(false);
 
   useEffect(() => {
@@ -313,9 +381,9 @@ export function PrimaryButton({ label, onPress, loading, disabled, iconRight, st
  * "Squishy" ao toque e reação contextual ao passar o mouse.
  */
 export function SecondaryButton({ label, onPress, loading, disabled, icon, style }: ButtonProps) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const iconTranslateX = useRef(new Animated.Value(0)).current;
-  const iconRotate = useRef(new Animated.Value(0)).current;
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+  const [iconTranslateX] = useState(() => new Animated.Value(0));
+  const [iconRotate] = useState(() => new Animated.Value(0));
   const isHovered = useRef(false);
 
   const handlePressIn = () => {
@@ -455,8 +523,8 @@ export function SquishyPressable({
   accessibilityRole?: "button";
   hitSlop?: any;
 }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
-  const animValue = useRef(new Animated.Value(0)).current;
+  const [scaleAnim] = useState(() => new Animated.Value(1));
+  const [animValue] = useState(() => new Animated.Value(0));
   const [hovered, setHovered] = useState(false);
 
   const handlePressIn = () => {
@@ -846,6 +914,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: C.cardBorder,
     overflow: "hidden",
+  },
+
+  surfaceShadow: {
+    borderRadius: DS.radius.xl,
+    backgroundColor: C.surface,
+    ...(Platform.OS === "web"
+      ? ({ boxShadow: "0 8px 20px rgba(0, 0, 0, 0.08)" } as any)
+      : {
+          shadowColor: "#000",
+          shadowOffset: { width: 0, height: 6 },
+        }),
+  },
+
+  surfaceCard: {
+    backgroundColor: C.surface,
+    borderRadius: DS.radius.xl,
+    borderWidth: 1,
+    borderColor: C.border,
+    overflow: "hidden",
+  },
+
+  cardBadgeContainer: {
+    backgroundColor: C.cardBadgeBg,
+    borderWidth: 1,
+    borderColor: C.cardBadgeBorder,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   btnPrimaryWrapper: {

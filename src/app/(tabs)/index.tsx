@@ -24,15 +24,17 @@ import {
 import { COLORS, DS } from "@/global/themes";
 import { supabase } from "@/lib/supabaseClient";
 import { listarMeusPets, Pet } from "@/services/pets";
+import { Leitura, listarTodasLeituras } from "@/services/leituras";
 import { styles } from "@/styles/homeStyles";
-import { SquishyPressable, StaggerFadeItem } from "@/components/ds";
+import { SquishyPressable, StaggerFadeItem, TiltCard } from "@/components/ds";
+import RodapeNav, { RodapeAba } from "@/components/RodapeNav";
+import * as AuthController from "@/controller/authController";
 
 // Importação dos banners em PNG
 import Banner1 from "@/assets/banners/banner1.png";
 import Banner2 from "@/assets/banners/banner2.png";
 import Banner3 from "@/assets/banners/banner3.png";
 import Banner4 from "@/assets/banners/banner4.png";
-import * as AuthController from "@/controller/authController";
 
 const banners = [
   {
@@ -60,12 +62,16 @@ const banners = [
 export default function Home() {
   const [nomeUsuario, setNomeUsuario] = useState("Usuário");
   const [indiceAtual, setIndiceAtual] = useState(0);
-  const [abaAtiva, setAbaAtiva] = useState("home");
+  const [abaAtiva, setAbaAtiva] = useState<RodapeAba>("home");
   const [filtroAtivo, setFiltroAtivo] = useState("pets");
 
   // Estado dos Pets
   const [pets, setPets] = useState<Pet[]>([]);
   const [carregandoPets, setCarregandoPets] = useState(true);
+
+  // Estado das Leituras
+  const [leituras, setLeituras] = useState<Leitura[]>([]);
+  const [carregandoLeituras, setCarregandoLeituras] = useState(false);
 
   const [opacidade] = useState(() => new Animated.Value(1));
   const [saindo, setSaindo] = useState(false);
@@ -95,6 +101,19 @@ export default function Home() {
     }
   }
 
+  // Carrega histórico de escaneamentos
+  async function carregarLeituras() {
+    try {
+      setCarregandoLeituras(true);
+      const data = await listarTodasLeituras();
+      setLeituras(data || []);
+    } catch {
+      setLeituras([]);
+    } finally {
+      setCarregandoLeituras(false);
+    }
+  }
+
   // Carrega dados do usuário autenticado
   async function carregarUsuario() {
     try {
@@ -114,6 +133,7 @@ export default function Home() {
       await Promise.all([
         carregarUsuario(),
         carregarPets(),
+        carregarLeituras(),
       ]);
     }
 
@@ -177,10 +197,17 @@ export default function Home() {
 
   const primeiroNome = nomeUsuario ? nomeUsuario.trim().split(" ")[0] : "Usuário";
 
+  const dadosLista =
+    filtroAtivo === "pets"
+      ? (pets as any[])
+      : filtroAtivo === "historico"
+      ? (leituras as any[])
+      : [];
+
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
-        data={filtroAtivo === "pets" ? pets : []}
+        data={dadosLista}
         keyExtractor={(item) => item.id || Math.random().toString()}
         contentContainerStyle={styles.conteudo}
         showsVerticalScrollIndicator={false}
@@ -230,7 +257,15 @@ export default function Home() {
 
             {/* BLOCO 2: CARD PRINCIPAL (BANNER CARROSSEL + INDICADORES) */}
             <StaggerFadeItem animValue={animCard}>
-              <View style={styles.bannerWrapper}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                style={styles.bannerWrapper}
+                onPress={() => {
+                  if (indiceAtual === 1) {
+                    router.push("/mapa" as any);
+                  }
+                }}
+              >
                 <Animated.View
                   style={[styles.bannerContainer, { opacity: opacidade }]}
                 >
@@ -249,7 +284,7 @@ export default function Home() {
                     </Text>
                   </View>
                 </Animated.View>
-              </View>
+              </TouchableOpacity>
 
               {/* INDICADORES DO CARROSSEL */}
               <View style={styles.indicadores}>
@@ -297,7 +332,10 @@ export default function Home() {
                         ? styles.botaoAtivo
                         : styles.botao
                     }
-                    onPress={() => setFiltroAtivo("historico")}
+                    onPress={() => {
+                      setFiltroAtivo("historico");
+                      carregarLeituras();
+                    }}
                   >
                     <Text
                       style={
@@ -335,7 +373,9 @@ export default function Home() {
                   <Text style={styles.textoSecao}>Meus Pets</Text>
                   <SquishyPressable
                     style={styles.adicionar}
-                    onPress={() => router.push("/pet/novo" as any)}
+                    onPress={() => {
+                      // Funcionalidade ainda não incrementada/implementada
+                    }}
                     iconAnimType="rotate"
                   >
                     {({ iconStyle }) => (
@@ -354,7 +394,79 @@ export default function Home() {
                 </View>
               )}
 
-              {/* LOADING STATE DA LISTA (skeleton) */}
+              {/* CABEÇALHO DO HISTÓRICO DE LEITURAS */}
+              {filtroAtivo === "historico" && (
+                <>
+                  <View style={styles.headerAcoes}>
+                    <Text style={styles.textoSecao}>Leituras das Medalhas</Text>
+                    <SquishyPressable
+                      style={styles.adicionar}
+                      onPress={() => router.push("/mapa" as any)}
+                    >
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Ionicons name="map-outline" size={14} color={DS.colors.text} />
+                        <Text style={styles.textoAdicionar}>Ver no Mapa</Text>
+                      </View>
+                    </SquishyPressable>
+                  </View>
+
+                  {/* BANNER DE ACESSO AO MAPA (3D Tilt Effect + Contraste Padrão AAA) */}
+                  <TiltCard
+                    variant="gradient"
+                    style={{ marginBottom: 16 }}
+                    contentStyle={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 12,
+                    }}
+                    padding={16}
+                    onPress={() => router.push("/mapa" as any)}
+                  >
+                    <View style={styles.bannerMapaIconeTexto}>
+                      <View
+                        style={{
+                          width: 44,
+                          height: 44,
+                          borderRadius: 22,
+                          backgroundColor: "rgba(255, 255, 255, 0.2)",
+                          borderWidth: 1,
+                          borderColor: "rgba(255, 255, 255, 0.28)",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Ionicons name="map" size={22} color="#FFFFFF" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.bannerMapaTitulo,
+                            { color: "#FFFFFF", fontFamily: "Poppins_700Bold" },
+                          ]}
+                        >
+                          Mapa Interativo de Leituras
+                        </Text>
+                        <Text
+                          style={[
+                            styles.bannerMapaSubtitulo,
+                            {
+                              color: "rgba(255, 255, 255, 0.92)",
+                              fontFamily: "Poppins_400Regular",
+                              marginTop: 2,
+                            },
+                          ]}
+                        >
+                          Explore todos os locais onde as tags foram lidas
+                        </Text>
+                      </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                  </TiltCard>
+                </>
+              )}
+
+              {/* LOADING STATE DA LISTA (skeleton pets) */}
               {filtroAtivo === "pets" && carregandoPets && (
                 <View style={styles.loading}>
                   {[0, 1, 2].map((i) => (
@@ -369,7 +481,14 @@ export default function Home() {
                 </View>
               )}
 
-              {/* EMPTY STATE DA LISTA */}
+              {/* LOADING STATE DE LEITURAS */}
+              {filtroAtivo === "historico" && carregandoLeituras && (
+                <View style={{ paddingVertical: 24, alignItems: "center" }}>
+                  <ActivityIndicator size="large" color={DS.colors.primary} />
+                </View>
+              )}
+
+              {/* EMPTY STATE DA LISTA DE PETS */}
               {filtroAtivo === "pets" && !carregandoPets && pets.length === 0 && (
                 <View style={styles.emptyContainer}>
                   <View style={styles.emptyIconCircle}>
@@ -385,7 +504,23 @@ export default function Home() {
                 </View>
               )}
 
-              {filtroAtivo !== "pets" && (
+              {/* EMPTY STATE DE HISTÓRICO */}
+              {filtroAtivo === "historico" && !carregandoLeituras && leituras.length === 0 && (
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons
+                      name="location-outline"
+                      size={36}
+                      color={DS.colors.textSubtle}
+                    />
+                  </View>
+                  <Text style={styles.emptyText}>
+                    Nenhuma leitura registrada ainda.
+                  </Text>
+                </View>
+              )}
+
+              {filtroAtivo === "outro" && (
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>Em breve...</Text>
                 </View>
@@ -394,94 +529,78 @@ export default function Home() {
           </>
         }
         renderItem={({ item }) => {
-          if (filtroAtivo !== "pets") return null;
+          if (filtroAtivo === "pets") {
+            const pet = item as Pet;
+            return (
+              <SquishyPressable
+                style={styles.card}
+                onPress={() => router.push(`/pet/${pet.id}` as any)}
+              >
+                <View style={styles.petAvatar}>
+                  <Ionicons name="paw" size={20} color={DS.colors.cardText} />
+                </View>
+                <View style={styles.cardInfo}>
+                  <Text style={styles.petName}>{pet.nome}</Text>
+                  <Text style={styles.petDetails}>
+                    {pet.especie} • {pet.raca || "Sem raça definida"}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={DS.icon.sm}
+                  color={DS.colors.textSubtle}
+                />
+              </SquishyPressable>
+            );
+          }
 
-          return (
-            <SquishyPressable
-              style={styles.card}
-              onPress={() => router.push(`/pet/${item.id}` as any)}
-            >
-              <View style={styles.petAvatar}>
-                <Ionicons name="paw" size={20} color={DS.colors.cardText} />
-              </View>
-              <View style={styles.cardInfo}>
-                <Text style={styles.petName}>{item.nome}</Text>
-                <Text style={styles.petDetails}>
-                  {item.especie} • {item.raca || "Sem raça definida"}
-                </Text>
-              </View>
-              <Ionicons
-                name="chevron-forward"
-                size={DS.icon.sm}
-                color={DS.colors.textSubtle}
-              />
-            </SquishyPressable>
-          );
+          if (filtroAtivo === "historico") {
+            const leitura = item as Leitura;
+            return (
+              <SquishyPressable
+                style={styles.cardLeitura}
+                onPress={() =>
+                  router.push({
+                    pathname: "/mapa" as any,
+                    params: { petId: leitura.pet_id },
+                  })
+                }
+              >
+                <View style={styles.cardLeituraIcone}>
+                  <MaterialCommunityIcons
+                    name="paw"
+                    size={18}
+                    color={DS.colors.brand}
+                  />
+                </View>
+                <View style={styles.cardLeituraInfo}>
+                  <Text style={styles.cardLeituraPet}>
+                    {leitura.pet?.nome || "Medalha PetSafe"}
+                  </Text>
+                  <Text style={styles.cardLeituraEndereco} numberOfLines={1}>
+                    {leitura.endereco_aproximado ||
+                      `${leitura.bairro || ""} ${leitura.cidade || ""}`.trim() ||
+                      `Lat: ${leitura.latitude.toFixed(4)}, Long: ${leitura.longitude.toFixed(4)}`}
+                  </Text>
+                  <Text style={styles.cardLeituraData}>
+                    {new Date(leitura.criado_em).toLocaleString("pt-BR")}
+                  </Text>
+                </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={DS.colors.textSubtle}
+                />
+              </SquishyPressable>
+            );
+          }
+
+          return null;
         }}
       />
 
-      {/* NAVEGAÇÃO INFERIOR (BOTTOM BAR) */}
-      <View style={styles.rodape}>
-        <TouchableOpacity
-          style={styles.itemRodape}
-          onPress={() => setAbaAtiva("home")}
-        >
-          <Octicons
-            name="home"
-            size={20}
-            color={abaAtiva === "home" ? COLORS.yellow : COLORS.cinzaclaro}
-          />
-          {abaAtiva === "home" && <View style={styles.tracoAtivo} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.itemRodape}
-          onPress={() => setAbaAtiva("ai")}
-        >
-          <MaterialCommunityIcons
-            name="robot"
-            size={20}
-            color={abaAtiva === "ai" ? COLORS.yellow : COLORS.cinzaclaro}
-          />
-          {abaAtiva === "ai" && <View style={styles.tracoAtivo} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.itemRodape}
-          onPress={() => setAbaAtiva("scanner")}
-        >
-          <Ionicons
-            name="qr-code-outline"
-            size={20}
-            color={abaAtiva === "scanner" ? COLORS.yellow : COLORS.cinzaclaro}
-          />
-          {abaAtiva === "scanner" && <View style={styles.tracoAtivo} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.itemRodape}
-          onPress={() => setAbaAtiva("chat")}
-        >
-          <Ionicons
-            name="chatbubble-outline"
-            size={20}
-            color={abaAtiva === "chat" ? COLORS.yellow : COLORS.cinzaclaro}
-          />
-          {abaAtiva === "chat" && <View style={styles.tracoAtivo} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.itemRodape}
-          onPress={() => setAbaAtiva("pets")}
-        >
-          <FontAwesome5
-            name="paw"
-            size={20}
-            color={abaAtiva === "pets" ? COLORS.yellow : COLORS.cinzaclaro}
-          />
-          {abaAtiva === "pets" && <View style={styles.tracoAtivo} />}
-        </TouchableOpacity>
-      </View>
+      {/* NAVEGAÇÃO INFERIOR UNIFICADA (BOTTOM BAR) */}
+      <RodapeNav abaAtiva={abaAtiva} onSelecionarAba={(aba) => setAbaAtiva(aba)} />
     </SafeAreaView>
   );
 }

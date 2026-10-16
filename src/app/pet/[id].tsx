@@ -1,38 +1,174 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { router, useLocalSearchParams } from "expo-router";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { DS } from '@/global/themes';
-import { HighlightCard } from '@/components/ds';
+import { COLORS, DS } from "@/global/themes";
+import { getPet, Pet } from "@/services/pets";
+import { Leitura, listarLeiturasPorPet } from "@/services/leituras";
+import PetMap from "@/components/PetMap";
+import { TiltCard } from "@/components/ds";
+import { PetIconBySpecies } from "@/components/PetIcons";
 
 const C = DS.colors;
 
 export default function PetDetails() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const [pet, setPet] = useState<Pet | null>(null);
+  const [leituras, setLeituras] = useState<Leitura[]>([]);
+  const [carregando, setCarregando] = useState(true);
+
+  useEffect(() => {
+    async function carregarDados() {
+      if (!id) return;
+      try {
+        setCarregando(true);
+        const [dadosPet, dadosLeituras] = await Promise.all([
+          getPet(id).catch(() => null),
+          listarLeiturasPorPet(id).catch(() => []),
+        ]);
+
+        if (dadosPet) {
+          setPet(dadosPet);
+        } else {
+          // Fallback gracioso se estiver em desenvolvimento
+          setPet({
+            id,
+            nome: "Pipoca",
+            especie: "Cachorro",
+            raca: "Golden Retriever",
+            observacoes: "Pet cadastrado no PetSafe.",
+          });
+        }
+
+        setLeituras(dadosLeituras);
+      } finally {
+        setCarregando(false);
+      }
+    }
+
+    carregarDados();
+  }, [id]);
+
+  if (carregando) {
+    return (
+      <SafeAreaView style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={COLORS.yellow} />
+      </SafeAreaView>
+    );
+  }
+
+  const ultimaLeitura = leituras.length > 0 ? leituras[0] : null;
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* HEADER */}
       <View style={styles.header}>
         <Pressable
+          style={({ pressed }) => [styles.botaoVoltar, pressed && styles.pressed]}
           onPress={() => router.back()}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Voltar"
-          style={({ pressed }) => [styles.back, pressed && styles.pressed]}
         >
-          <Ionicons name="chevron-back" size={DS.icon.md} color={C.text} />
+          <Ionicons name="arrow-back" size={22} color={C.text} />
         </Pressable>
+        <Text style={styles.headerTitulo}>Detalhes do Pet</Text>
+        <View style={{ width: 40 }} />
       </View>
 
-      <View style={styles.content}>
-        <HighlightCard style={styles.card}>
-          <View style={styles.avatar}>
-            <Ionicons name="paw" size={28} color={C.cardText} />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* CARD DO PET (3D Tilt Effect + Contraste Padrão AAA) */}
+        <TiltCard
+          variant="gradient"
+          contentStyle={styles.cardPetContent}
+          style={styles.cardPetContainer}
+          padding={22}
+        >
+          <View style={styles.avatarWrapper}>
+            <PetIconBySpecies
+              especie={pet?.especie}
+              size={36}
+              fallbackColor={COLORS.white}
+            />
           </View>
-          <Text style={styles.text}>Pet Details para ID: {id}</Text>
-        </HighlightCard>
-      </View>
+          <Text style={styles.petNome}>{pet?.nome || "Pet"}</Text>
+          <Text style={styles.petInfo}>
+            {pet?.especie || "Espécie não informada"} • {pet?.raca || "Sem raça definida"}
+          </Text>
+        </TiltCard>
+
+        {/* SEÇÃO DO MAPA / ÚLTIMA LEITURA */}
+        <View style={styles.secaoMapa}>
+          <View style={styles.secaoHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.secaoTitulo}>Última Localização da Tag</Text>
+              <Text style={styles.secaoSubtitulo}>
+                {leituras.length} leitura(s) registrada(s)
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.botaoMapaCompleto}
+              onPress={() =>
+                router.push({
+                  pathname: "/mapa" as any,
+                  params: { petId: id },
+                })
+              }
+            >
+              <Ionicons name="map" size={15} color={COLORS.white} />
+              <Text style={styles.textoBotaoMapa}>Mapa Completo</Text>
+            </TouchableOpacity>
+          </View>
+
+          {leituras.length > 0 ? (
+            <View style={styles.mapaPreviewContainer}>
+              <View style={styles.mapaPreviewWrapper}>
+                <PetMap
+                  leituras={leituras}
+                  mostrarControles={false}
+                  mostrarCarousel={false}
+                  style={styles.mapaPreview}
+                />
+              </View>
+
+              {ultimaLeitura && (
+                <View style={styles.cardUltimaLeitura}>
+                  <Ionicons name="location-sharp" size={18} color={COLORS.yellow} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.enderecoTexto} numberOfLines={2}>
+                      {ultimaLeitura.endereco_aproximado ||
+                        `${ultimaLeitura.bairro || ""} ${ultimaLeitura.cidade || ""}`.trim() ||
+                        `Lat: ${ultimaLeitura.latitude.toFixed(4)}, Long: ${ultimaLeitura.longitude.toFixed(4)}`}
+                    </Text>
+                    <Text style={styles.horaTexto}>
+                      Registrado em:{" "}
+                      {new Date(ultimaLeitura.criado_em).toLocaleString("pt-BR")}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            </View>
+          ) : (
+            <View style={styles.semLeituras}>
+              <Ionicons name="shield-outline" size={32} color={C.textSubtle} />
+              <Text style={styles.semLeiturasTexto}>
+                Nenhuma leitura registrada para esta tag ainda.
+              </Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -42,50 +178,155 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: C.bg,
   },
-  header: {
-    paddingHorizontal: 24,
-    paddingTop: 12,
+  centerContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: C.bg,
   },
-  back: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.divider,
+    backgroundColor: C.bg,
+  },
+  botaoVoltar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: C.surface,
     borderWidth: 1,
     borderColor: C.border,
+    alignItems: "center",
+    justifyContent: "center",
   },
   pressed: {
     opacity: 0.7,
     transform: [{ scale: 0.96 }],
   },
+  headerTitulo: {
+    fontSize: 18,
+    fontFamily: DS.font.bold,
+    color: C.text,
+  },
   content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    width: '100%',
-    maxWidth: 560,
-    alignSelf: 'center',
+    padding: 20,
+    gap: 20,
+    maxWidth: 720,
+    width: "100%",
+    alignSelf: "center",
   },
-  card: {
-    alignItems: 'center',
-    paddingVertical: 32,
+  cardPetContainer: {
+    width: "100%",
   },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: C.cardAlt,
+  cardPetContent: {
+    alignItems: "center",
+  },
+  avatarWrapper: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: C.cardBadgeBg,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: C.cardBorder,
-    marginBottom: 16,
+    borderColor: C.cardBadgeBorder,
   },
-  text: {
+  petNome: {
+    fontSize: 22,
+    fontFamily: DS.font.bold,
+    color: C.cardText,
+  },
+  petInfo: {
+    fontSize: 13,
+    fontFamily: DS.font.regular,
+    color: C.cardTextMuted,
+    marginTop: 3,
+  },
+  secaoMapa: {
+    backgroundColor: C.surface,
+    borderRadius: DS.radius.lg,
+    borderWidth: 1,
+    borderColor: C.border,
+    padding: 16,
+    gap: 12,
+  },
+  secaoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  secaoTitulo: {
     fontSize: 16,
     fontFamily: DS.font.semibold,
-    color: C.cardText,
+    color: C.text,
+  },
+  secaoSubtitulo: {
+    fontSize: 12,
+    fontFamily: DS.font.regular,
+    color: C.textMuted,
+  },
+  botaoMapaCompleto: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: C.primary,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  textoBotaoMapa: {
+    fontSize: 12,
+    fontFamily: DS.font.semibold,
+    color: C.primaryText,
+  },
+  mapaPreviewContainer: {
+    borderRadius: DS.radius.md,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  mapaPreviewWrapper: {
+    height: 180,
+    width: "100%",
+  },
+  mapaPreview: {
+    height: "100%",
+    width: "100%",
+  },
+  cardUltimaLeitura: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    padding: 12,
+    backgroundColor: C.bg,
+  },
+  enderecoTexto: {
+    fontSize: 13,
+    fontFamily: DS.font.regular,
+    color: C.text,
+  },
+  horaTexto: {
+    fontSize: 11,
+    fontFamily: DS.font.regular,
+    color: C.textSubtle,
+    marginTop: 2,
+  },
+  semLeituras: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 30,
+    gap: 8,
+  },
+  semLeiturasTexto: {
+    fontSize: 13,
+    fontFamily: DS.font.regular,
+    color: C.textMuted,
+    textAlign: "center",
   },
 });

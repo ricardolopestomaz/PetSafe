@@ -22,6 +22,9 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.ricardo.tomaz.PetSafefront"
     },
+    "androidNavigationBar": {
+      "visible": "sticky-immersive"
+    },
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
@@ -44,7 +47,13 @@
       "expo-font",
       "expo-image",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "O PetSafe precisa da sua localização para exibir o mapa e registrar onde seu pet foi encontrado."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -17,7 +17,12 @@ function extrairTokensDaUrl(url: string) {
 
   const accessToken = params.get('access_token');
   const refreshToken = params.get('refresh_token');
+  const code = params.get('code');
   const type = params.get('type');
+
+  if (code) {
+    return { code, type };
+  }
 
   if (!accessToken || !refreshToken) {
     return null;
@@ -31,25 +36,40 @@ async function tratarUrl(url: string | null) {
     return;
   }
 
-  const tokens = extrairTokensDaUrl(url);
+  const dadosAuth = extrairTokensDaUrl(url);
 
-  if (!tokens) {
+  if (!dadosAuth) {
     return;
   }
 
-  const { error } = await supabase.auth.setSession({
-    access_token: tokens.accessToken,
-    refresh_token: tokens.refreshToken,
-  });
-
-  if (error) {
+  if ('code' in dadosAuth && dadosAuth.code) {
+    const { error } = await supabase.auth.exchangeCodeForSession(dadosAuth.code);
+    if (error) {
+      return;
+    }
+    if (dadosAuth.type === 'recovery') {
+      router.replace('/(auth)/recuperar_senha');
+    } else {
+      router.replace('/(tabs)');
+    }
     return;
   }
 
-  if (tokens.type === 'recovery') {
-    router.replace('/(auth)/recuperar_senha');
-  } else {
-    router.replace('/(tabs)');
+  if ('accessToken' in dadosAuth && dadosAuth.accessToken && dadosAuth.refreshToken) {
+    const { error } = await supabase.auth.setSession({
+      access_token: dadosAuth.accessToken,
+      refresh_token: dadosAuth.refreshToken,
+    });
+
+    if (error) {
+      return;
+    }
+
+    if (dadosAuth.type === 'recovery') {
+      router.replace('/(auth)/recuperar_senha');
+    } else {
+      router.replace('/(tabs)');
+    }
   }
 }
 

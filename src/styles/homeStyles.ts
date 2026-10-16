@@ -324,4 +324,83 @@ export const styles = StyleSheet.create({
     backgroundColor: COLORS.yellow,
     borderRadius: 2,
   },
+
+  /* Histórico de Leituras e Mapa */
+  bannerMapaBotao: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#F0F2FF",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E0E4FA",
+  },
+  bannerMapaIconeTexto: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  bannerMapaTitulo: {
+    fontSize: 14,
+    fontFamily: "Poppins_600SemiBold",
+    color: COLORS.blue,
+  },
+  bannerMapaSubtitulo: {
+    fontSize: 12,
+    fontFamily: "Poppins_400Regular",
+    color: COLORS.roxoclaro,
+  },
+  botaoAbrirMapa: {
+    backgroundColor: COLORS.blue,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+  },
+  textoBotaoAbrirMapa: {
+    fontSize: 12,
+    fontFamily: "Poppins_600SemiBold",
+    color: COLORS.white,
+  },
+  cardLeitura: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 14,
+    backgroundColor: "#FAFAFD",
+    borderRadius: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#F0F0F5",
+    gap: 12,
+  },
+  cardLeituraIcone: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#EEF0FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cardLeituraInfo: {
+    flex: 1,
+  },
+  cardLeituraPet: {
+    fontSize: 15,
+    fontFamily: "Poppins_600SemiBold",
+    color: COLORS.blue,
+  },
+  cardLeituraEndereco: {
+    fontSize: 12,
+    fontFamily: "Poppins_400Regular",
+    color: "#2C2C2E",
+    marginTop: 2,
+  },
+  cardLeituraData: {
+    fontSize: 11,
+    fontFamily: "Poppins_400Regular",
+    color: COLORS.placeholder,
+    marginTop: 2,
+  },
 });

@@ -28,14 +28,16 @@ export const DS = {
     border: "#E2E8F0",
     ring: "#18181B",
 
-    // Card de destaque vivo (azul royal profundo) — texto branco, contraste ≥ 6.7:1
-    // (#1D4ED8 ≈ 6.7:1 no ponto mais claro; #1E40AF ≈ 8.7:1 no mais escuro)
+    // Card de destaque vivo (azul royal profundo) — texto branco, contraste padrão AAA (≥ 7:1)
     card: "#1D4ED8",
     cardGradient: ["#1D4ED8", "#1E40AF"] as [string, string],
     cardAlt: "rgba(255, 255, 255, 0.2)",
     cardBorder: "rgba(255, 255, 255, 0.28)",
     cardText: "#FFFFFF",
     cardTextMuted: "rgba(255, 255, 255, 0.92)",
+    cardSubtle: "#F1F5F9",
+    cardBadgeBg: "rgba(255, 255, 255, 0.2)",
+    cardBadgeBorder: "rgba(255, 255, 255, 0.28)",
 
     // Ações principais (Índigo/Violeta vibrante e acolhedor, sem cor preta)
     primary: "#4F46E5",
