@@ -16,6 +16,7 @@ import * as Location from "expo-location";
 
 import { COLORS } from "@/global/themes";
 import { Leitura } from "@/services/leituras";
+import { PetIconBySpecies } from "@/components/PetIcons";
 
 export type PetMapProps = {
   leituras: Leitura[];
@@ -281,10 +282,10 @@ export default function PetMapNative({
                     isAtivo && styles.markerIconWrapperAtivo,
                   ]}
                 >
-                  <MaterialCommunityIcons
-                    name="paw"
+                  <PetIconBySpecies
+                    especie={leitura.pet?.especie}
                     size={isAtivo ? 20 : 16}
-                    color={isLatest ? COLORS.blue : COLORS.white}
+                    fallbackColor={isLatest ? COLORS.blue : COLORS.white}
                   />
                 </View>
                 <View
@@ -430,17 +431,27 @@ export default function PetMapNative({
                 </View>
 
                 <View style={styles.cardScanMeio}>
-                  <Text style={styles.petNomeCard}>
-                    {item.pet?.nome || "Cachorro PetSafe"}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <PetIconBySpecies
+                      especie={item.pet?.especie}
+                      size={18}
+                      fallbackColor={COLORS.blue}
+                    />
+                    <Text style={styles.petNomeCard}>
+                      {item.pet?.nome || "PetSafe"}
+                    </Text>
+                  </View>
                   <Text style={styles.enderecoCard} numberOfLines={2}>
                     {item.endereco_aproximado ||
                       `${item.bairro || ""} ${item.cidade || ""}`.trim() ||
                       `Lat: ${item.latitude.toFixed(4)}, Long: ${item.longitude.toFixed(4)}`}
                   </Text>
-                  <Text style={styles.dataExataCard}>
-                    🕒 {new Date(item.criado_em).toLocaleString("pt-BR")}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                    <Ionicons name="time-outline" size={12} color={COLORS.roxoclaro} />
+                    <Text style={styles.dataExataCard}>
+                      {new Date(item.criado_em).toLocaleString("pt-BR")}
+                    </Text>
+                  </View>
                 </View>
 
                 {item.lido_por_dispositivo && (

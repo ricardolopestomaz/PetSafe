@@ -27,6 +27,7 @@ import { listarMeusPets, Pet } from "@/services/pets";
 import { Leitura, listarTodasLeituras } from "@/services/leituras";
 import { styles } from "@/styles/homeStyles";
 import { SquishyPressable, StaggerFadeItem } from "@/components/ds";
+import RodapeNav, { RodapeAba } from "@/components/RodapeNav";
 import * as AuthController from "@/controller/authController";
 
 // Importação dos banners em PNG
@@ -61,7 +62,7 @@ const banners = [
 export default function Home() {
   const [nomeUsuario, setNomeUsuario] = useState("Usuário");
   const [indiceAtual, setIndiceAtual] = useState(0);
-  const [abaAtiva, setAbaAtiva] = useState("home");
+  const [abaAtiva, setAbaAtiva] = useState<RodapeAba>("home");
   const [filtroAtivo, setFiltroAtivo] = useState("pets");
 
   // Estado dos Pets
@@ -372,7 +373,9 @@ export default function Home() {
                   <Text style={styles.textoSecao}>Meus Pets</Text>
                   <SquishyPressable
                     style={styles.adicionar}
-                    onPress={() => router.push("/pet/novo" as any)}
+                    onPress={() => {
+                      // Funcionalidade ainda não incrementada/implementada
+                    }}
                     iconAnimType="rotate"
                   >
                     {({ iconStyle }) => (
@@ -400,7 +403,10 @@ export default function Home() {
                       style={styles.adicionar}
                       onPress={() => router.push("/mapa" as any)}
                     >
-                      <Text style={styles.textoAdicionar}>Ver no Mapa 🗺️</Text>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Ionicons name="map-outline" size={14} color={DS.colors.text} />
+                        <Text style={styles.textoAdicionar}>Ver no Mapa</Text>
+                      </View>
                     </SquishyPressable>
                   </View>
 
@@ -558,71 +564,8 @@ export default function Home() {
         }}
       />
 
-      {/* NAVEGAÇÃO INFERIOR (BOTTOM BAR) */}
-      <View style={styles.rodape}>
-        <TouchableOpacity
-          style={styles.itemRodape}
-          onPress={() => setAbaAtiva("home")}
-        >
-          <Octicons
-            name="home"
-            size={20}
-            color={abaAtiva === "home" ? COLORS.yellow : COLORS.cinzaclaro}
-          />
-          {abaAtiva === "home" && <View style={styles.tracoAtivo} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.itemRodape}
-          onPress={() => setAbaAtiva("ai")}
-        >
-          <MaterialCommunityIcons
-            name="robot"
-            size={20}
-            color={abaAtiva === "ai" ? COLORS.yellow : COLORS.cinzaclaro}
-          />
-          {abaAtiva === "ai" && <View style={styles.tracoAtivo} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.itemRodape}
-          onPress={() => {
-            setAbaAtiva("scanner");
-            router.push("/mapa" as any);
-          }}
-        >
-          <Ionicons
-            name="map-outline"
-            size={20}
-            color={abaAtiva === "scanner" ? COLORS.yellow : COLORS.cinzaclaro}
-          />
-          {abaAtiva === "scanner" && <View style={styles.tracoAtivo} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.itemRodape}
-          onPress={() => setAbaAtiva("chat")}
-        >
-          <Ionicons
-            name="chatbubble-outline"
-            size={20}
-            color={abaAtiva === "chat" ? COLORS.yellow : COLORS.cinzaclaro}
-          />
-          {abaAtiva === "chat" && <View style={styles.tracoAtivo} />}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.itemRodape}
-          onPress={() => setAbaAtiva("pets")}
-        >
-          <FontAwesome5
-            name="paw"
-            size={20}
-            color={abaAtiva === "pets" ? COLORS.yellow : COLORS.cinzaclaro}
-          />
-          {abaAtiva === "pets" && <View style={styles.tracoAtivo} />}
-        </TouchableOpacity>
-      </View>
+      {/* NAVEGAÇÃO INFERIOR UNIFICADA (BOTTOM BAR) */}
+      <RodapeNav abaAtiva={abaAtiva} onSelecionarAba={(aba) => setAbaAtiva(aba)} />
     </SafeAreaView>
   );
 }

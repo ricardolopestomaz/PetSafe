@@ -9,7 +9,7 @@ import {
   Octicons,
 } from "@expo/vector-icons";
 
-import { COLORS } from "@/global/themes";
+import { COLORS, DS } from "@/global/themes";
 
 export type RodapeAba = "home" | "ai" | "scanner" | "chat" | "pets";
 
@@ -23,7 +23,7 @@ export default function RodapeNav({
   onSelecionarAba,
 }: RodapeNavProps) {
   const insets = useSafeAreaInsets();
-  const paddingBottomCalculado = Math.max(insets.bottom, 8);
+  const paddingBottomCalculado = Math.max(insets.bottom, 10);
 
   function navegar(aba: RodapeAba) {
     if (onSelecionarAba) {
@@ -51,7 +51,7 @@ export default function RodapeNav({
         styles.rodape,
         {
           paddingBottom: paddingBottomCalculado,
-          height: 56 + paddingBottomCalculado,
+          height: 60 + paddingBottomCalculado,
         },
       ]}
     >
@@ -81,7 +81,7 @@ export default function RodapeNav({
       >
         <MaterialCommunityIcons
           name="robot"
-          size={22}
+          size={20}
           color={abaAtiva === "ai" ? COLORS.yellow : COLORS.cinzaclaro}
         />
         {abaAtiva === "ai" && <View style={styles.tracoAtivo} />}
@@ -97,7 +97,7 @@ export default function RodapeNav({
       >
         <Ionicons
           name={abaAtiva === "scanner" ? "map" : "map-outline"}
-          size={22}
+          size={20}
           color={abaAtiva === "scanner" ? COLORS.yellow : COLORS.cinzaclaro}
         />
         {abaAtiva === "scanner" && <View style={styles.tracoAtivo} />}
@@ -129,7 +129,7 @@ export default function RodapeNav({
       >
         <FontAwesome5
           name="paw"
-          size={19}
+          size={20}
           color={abaAtiva === "pets" ? COLORS.yellow : COLORS.cinzaclaro}
         />
         {abaAtiva === "pets" && <View style={styles.tracoAtivo} />}
@@ -143,28 +143,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-    backgroundColor: COLORS.white,
-    borderTopColor: "#EAEAEA",
-    borderTopWidth: 1,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 8,
+    backgroundColor: DS.colors.bg,
+    borderTopColor: DS.colors.divider,
+    borderTopWidth: StyleSheet.hairlineWidth,
     zIndex: 99,
   },
   itemRodape: {
-    flex: 1,
-    height: "100%",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 12,
     position: "relative",
-    paddingVertical: 4,
   },
   tracoAtivo: {
     position: "absolute",
-    bottom: 4,
-    width: 18,
+    bottom: -8,
+    width: 16,
     height: 3,
     backgroundColor: COLORS.yellow,
     borderRadius: 2,

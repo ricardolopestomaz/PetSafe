@@ -14,6 +14,11 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
 import { COLORS } from "@/global/themes";
 import { Leitura } from "@/services/leituras";
+import {
+  CAT_SVG_STRING,
+  DOG_SVG_STRING,
+  PetIconBySpecies,
+} from "@/components/PetIcons";
 
 export type PetMapProps = {
   leituras: Leitura[];
@@ -316,10 +321,23 @@ export default function PetMapWeb({
     const markersMap = {};
     const latlngs = [];
 
-    // Ícone SVG de pata de pet
+    // Ícones SVG para os marcadores do mapa
+    const dogSvg = \`${DOG_SVG_STRING}\`;
+    const catSvg = \`${CAT_SVG_STRING}\`;
     const pawSvg = \`<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
       <path d="M12 2C10.9 2 10 2.9 10 4C10 5.1 10.9 6 12 6C13.1 6 14 5.1 14 4C14 2.9 13.1 2 12 2M6 6C4.9 6 4 6.9 4 8C4 9.1 4.9 10 6 10C7.1 10 8 9.1 8 8C8 6.9 7.1 6 6 6M18 6C16.9 6 16 6.9 16 8C16 9.1 16.9 10 18 10C19.1 10 20 9.1 20 8C20 6.9 19.1 6 18 6M8.5 13C7.1 13 6 14.1 6 15.5C6 17.5 8 20 12 22C16 20 18 17.5 18 15.5C18 14.1 16.9 13 15.5 13C14.3 13 13.2 13.8 12.8 14.9C12.5 14.8 12.2 14.8 12 14.8C11.8 14.8 11.5 14.8 11.2 14.9C10.8 13.8 9.7 13 8.5 13Z" />
     </svg>\`;
+
+    function getPetPinIcon(especie) {
+      const e = (especie || '').toLowerCase();
+      if (e.includes('cachorro') || e.includes('cão') || e.includes('cao') || e.includes('dog')) {
+        return dogSvg;
+      }
+      if (e.includes('gato') || e.includes('cat') || e.includes('felin')) {
+        return catSvg;
+      }
+      return pawSvg;
+    }
 
     leituras.forEach((l, index) => {
       const isLatest = index === 0;
@@ -333,7 +351,7 @@ export default function PetMapWeb({
           \${isLatest ? '<div class="radar-pulse"></div>' : ''}
           <div class="badge-ordem">\${isLatest ? '★ #1 Mais Recente' : '#' + numOrdem}</div>
           <div class="pin-circle">
-            \${pawSvg}
+            \${getPetPinIcon(l.pet?.especie)}
           </div>
           <div class="pin-point"></div>
         </div>
@@ -353,14 +371,26 @@ export default function PetMapWeb({
       const popupContent = \`
         <div class="popup-box">
           <div class="popup-badge \${isLatest ? 'latest' : ''}">
-            \${isLatest ? '📍 ÚLTIMO ESCANEAMENTO' : '📍 Escaneamento #' + numOrdem}
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: -1px; margin-right: 4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+            \${isLatest ? 'ÚLTIMO ESCANEAMENTO' : 'Escaneamento #' + numOrdem}
           </div>
           <h4 class="popup-pet">\${l.pet?.nome || 'Medalha PetSafe'}</h4>
-          <div class="popup-time">🕒 \${dateStr}</div>
-          <div class="popup-addr">📍 \${l.endereco_aproximado || (l.bairro ? l.bairro + ', Palmas' : 'Coordenadas')}</div>
-          \${l.lido_por_dispositivo ? \`<div class="popup-device">📱 \${l.lido_por_dispositivo}</div>\` : ''}
+          <div class="popup-time">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            \${dateStr}
+          </div>
+          <div class="popup-addr">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            \${l.endereco_aproximado || (l.bairro ? l.bairro + ', Palmas' : 'Coordenadas')}
+          </div>
+          \${l.lido_por_dispositivo ? \`
+            <div class="popup-device">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 4px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+              \${l.lido_por_dispositivo}
+            </div>\` : ''}
           <a class="popup-btn-rota" href="\${googleMapsUrl}" target="_blank" rel="noopener noreferrer">
-            🧭 Traçar Rota no Google Maps
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 6px;"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+            Traçar Rota no Google Maps
           </a>
         </div>
       \`;
@@ -683,16 +713,26 @@ export default function PetMapWeb({
                 </View>
 
                 <View style={styles.cardScanMeio}>
-                  <Text style={styles.petNomeCard}>
-                    {item.pet?.nome || "Cachorro PetSafe"}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <PetIconBySpecies
+                      especie={item.pet?.especie}
+                      size={18}
+                      fallbackColor={COLORS.blue}
+                    />
+                    <Text style={styles.petNomeCard}>
+                      {item.pet?.nome || "PetSafe"}
+                    </Text>
+                  </View>
                   <Text style={styles.enderecoCard} numberOfLines={2}>
                     {item.endereco_aproximado ||
                       `${item.bairro || ""} Palmas`.trim()}
                   </Text>
-                  <Text style={styles.dataExataCard}>
-                    🕒 {new Date(item.criado_em).toLocaleString("pt-BR")}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 4, marginTop: 2 }}>
+                    <Ionicons name="time-outline" size={12} color={COLORS.roxoclaro} />
+                    <Text style={styles.dataExataCard}>
+                      {new Date(item.criado_em).toLocaleString("pt-BR")}
+                    </Text>
+                  </View>
                 </View>
 
                 {item.lido_por_dispositivo && (

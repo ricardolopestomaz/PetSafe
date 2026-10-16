@@ -1,20 +1,9 @@
 import { supabase } from "@/lib/supabase";
+import { LeituraDTO, RegistrarLeituraPayload } from "@/@types/mapa";
 import { Pet } from "./pets";
 
-export type Leitura = {
-  id: string;
-  pet_id: string;
-  latitude: number;
-  longitude: number;
-  cidade?: string;
-  bairro?: string;
-  endereco_aproximado?: string;
-  criado_em: string;
-  lido_por_dispositivo?: string;
-  tipo_leitura?: "nfc" | "qrcode";
-  observacao_leitura?: string;
-  pet?: Pet;
-};
+export type Leitura = LeituraDTO;
+export type { LeituraDTO, RegistrarLeituraPayload };
 
 // Dados mockados inteligentes demonstrando o histórico recente de escaneamentos do cachorro
 export const MOCK_LEITURAS: Leitura[] = [

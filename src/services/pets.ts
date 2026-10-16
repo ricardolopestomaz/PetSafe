@@ -1,16 +1,8 @@
 import { supabase } from '@/lib/supabase'
+import { CriarPetPayload, PetDTO } from '@/@types/pet'
 
-export type Pet = {
-  id?: string
-  tutor_id?: string
-  nome: string
-  especie?: string
-  raca?: string
-  data_nascimento?: string
-  foto_url?: string
-  video_url?: string
-  observacoes?: string
-}
+export type Pet = PetDTO;
+export type { CriarPetPayload, PetDTO };
 
 export const MOCK_PETS: Pet[] = [
   {

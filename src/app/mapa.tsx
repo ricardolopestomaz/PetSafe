@@ -14,6 +14,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { COLORS } from "@/global/themes";
 import PetMap from "@/components/PetMap";
 import RodapeNav from "@/components/RodapeNav";
+import { PetIconBySpecies } from "@/components/PetIcons";
 import { listarMeusPets, Pet } from "@/services/pets";
 import {
   Leitura,
@@ -97,7 +98,7 @@ export default function MapaScreen() {
       setLeituraSelecionada(novoScan);
 
       setAvisoNovoScan(
-        `📍 Nova leitura registrada de ${novoScan.pet?.nome || "Cachorro"}!`
+        `Nova leitura registrada de ${novoScan.pet?.nome || "Pet"}!`
       );
       setTimeout(() => setAvisoNovoScan(null), 4000);
     } catch (e) {
@@ -216,9 +217,6 @@ export default function MapaScreen() {
             const isAtivo = isTodos
               ? petSelecionadoId === null
               : petSelecionadoId === item.id;
-            const isCachorro =
-              item.especie?.toLowerCase().includes("cachorro") ||
-              item.especie?.toLowerCase().includes("cão");
 
             return (
               <TouchableOpacity
@@ -227,11 +225,19 @@ export default function MapaScreen() {
                   setPetSelecionadoId(isTodos ? null : item.id || null);
                 }}
               >
-                <Ionicons
-                  name={isCachorro ? "paw" : isTodos ? "layers-outline" : "paw-outline"}
-                  size={14}
-                  color={isAtivo ? COLORS.white : COLORS.blue}
-                />
+                {isTodos ? (
+                  <Ionicons
+                    name="layers-outline"
+                    size={14}
+                    color={isAtivo ? COLORS.white : COLORS.blue}
+                  />
+                ) : (
+                  <PetIconBySpecies
+                    especie={item.especie}
+                    size={16}
+                    fallbackColor={isAtivo ? COLORS.white : COLORS.blue}
+                  />
+                )}
                 <Text
                   style={[
                     styles.textoChipFiltro,
@@ -239,7 +245,6 @@ export default function MapaScreen() {
                   ]}
                 >
                   {item.nome}
-                  {isCachorro ? " 🐶" : ""}
                 </Text>
               </TouchableOpacity>
             );
@@ -247,10 +252,14 @@ export default function MapaScreen() {
         />
       </View>
 
-      {/* BANNER INFORMATIVO DO CACHORRO E ÚLTIMO SCAN */}
+      {/* BANNER INFORMATIVO DO PET E ÚLTIMO SCAN */}
       <View style={styles.bannerPetInfo}>
         <View style={styles.avatarPetPequeno}>
-          <MaterialCommunityIcons name="paw" size={18} color={COLORS.blue} />
+          <PetIconBySpecies
+            especie={petAtual?.especie}
+            size={20}
+            fallbackColor={COLORS.blue}
+          />
         </View>
 
         <View style={{ flex: 1 }}>
