@@ -1,199 +1,198 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { useState } from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, Pressable, StyleSheet, Text, useWindowDimensions } from "react-native";
+import { router } from "expo-router";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
+import { DS } from "@/global/themes";
 import * as AuthController from "@/controller/authController";
-import { COLORS } from "@/global/themes";
+import { GoogleFireworksButton } from "@/components/GoogleFireworksButton";
+import {
+  AuthLayout,
+  ErrorBanner,
+  Field,
+  FeaturePanel,
+  FooterLink,
+  FormHeader,
+  LabeledDivider,
+  PrimaryButton,
+} from "@/components/ds";
+
+const C = DS.colors;
 
 export default function Login() {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 900;
+
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
+  const [carregandoGoogle, setCarregandoGoogle] = useState(false);
+  const [erro, setErro] = useState<string | null>(null);
 
   async function entrar() {
+    setErro(null);
+    const emailLimpo = email.trim();
+
+    if (!emailLimpo || !senha) {
+      setErro("Informe seu e-mail e sua senha para continuar.");
+      return;
+    }
+
     setCarregando(true);
-    const resultado = await AuthController.realizarLogin(email, senha);
+    const resultado = await AuthController.realizarLogin(emailLimpo, senha);
     setCarregando(false);
 
     if (!resultado.sucesso) {
-      Alert.alert("Erro ao entrar", resultado.mensagem);
+      const msg = resultado.mensagem || "Erro ao realizar login. Verifique suas credenciais.";
+      setErro(msg);
+      Alert.alert("Erro ao entrar", msg);
       return;
     }
 
     router.replace("/(tabs)");
   }
 
+  async function entrarComGoogle() {
+    setErro(null);
+    setCarregandoGoogle(true);
+    const resultado = await AuthController.realizarLoginGoogle();
+    setCarregandoGoogle(false);
+
+    if (!resultado.sucesso) {
+      if (resultado.mensagem && !resultado.mensagem.includes("cancelado")) {
+        setErro(resultado.mensagem);
+        Alert.alert("Login com Google", resultado.mensagem);
+      }
+      return;
+    }
+
+    router.replace("/(tabs)");
+  }
+
+  const ocupado = carregando || carregandoGoogle;
+  const iconProps = { size: DS.icon.sm, color: C.cardText };
+
   return (
-    <SafeAreaView style={style.container}>
-      <KeyboardAvoidingView
-        style={style.keyboardView}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={style.topArea} />
+    <AuthLayout
+      actionLabel="Criar conta"
+      onActionPress={() => router.push("/(auth)/cadastro")}
+      actionDisabled={ocupado}
+      onLogoPress={() => {
+        if (!isDesktop) router.push("/(auth)/onboarding");
+      }}
+      side={
+        <FeaturePanel
+          category="Tecnologia de identificação"
+          title="Segurança inteligente e conectividade contínua para o seu pet."
+          description="Plataforma integrada de identificação por medalhas inteligentes, histórico médico centralizado e localização em tempo real."
+          items={[
+            {
+              icon: <Ionicons name="qr-code-outline" {...iconProps} />,
+              title: "Medalha QR Code e NFC",
+              description: "Acesso instantâneo aos dados do tutor, sem instalar aplicativos.",
+            },
+            {
+              icon: <Ionicons name="navigate-outline" {...iconProps} />,
+              title: "Notificação de leitura",
+              description: "Alerta imediato com coordenadas quando a medalha for escaneada.",
+            },
+            {
+              icon: <MaterialCommunityIcons name="clipboard-pulse-outline" {...iconProps} />,
+              title: "Histórico veterinário digital",
+              description: "Vacinação, antiparasitários e medicações sempre atualizados.",
+            },
+          ]}
+          footer="Avaliação 4.9 de 5.0 por tutores em todo o país."
+        />
+      }
+    >
+      <FormHeader
+        eyebrow="Acesso ao sistema"
+        title="Entrar na conta"
+        subtitle="Acesse para gerenciar medalhas e monitorar seus pets."
+      />
 
-        <View style={style.card}>
-          <Text style={style.title}>Login</Text>
+      {erro ? <ErrorBanner message={erro} /> : null}
 
-          {/* Campo E-mail */}
-          <Text style={style.label}>E-mail</Text>
-          <View style={style.inputContainer}>
-            <Ionicons name="mail-outline" size={20} color={COLORS.blue} />
-            <TextInput
-              style={style.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Digite seu e-mail"
-              placeholderTextColor={COLORS.placeholder}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
+      <GoogleFireworksButton
+        label="Continuar com o Google"
+        onPress={entrarComGoogle}
+        loading={carregandoGoogle}
+        disabled={ocupado}
+      />
 
-          {/* Campo Senha */}
-          <Text style={style.label}>Senha</Text>
-          <View style={style.inputContainer}>
-            <Ionicons
-              name="lock-closed-outline"
-              size={20}
-              color={COLORS.blue}
-            />
-            <TextInput
-              style={style.input}
-              value={senha}
-              onChangeText={setSenha}
-              placeholder="Digite a sua senha"
-              placeholderTextColor={COLORS.placeholder}
-              secureTextEntry
-            />
-          </View>
+      <LabeledDivider label="ou continue com e-mail" />
 
-          {/* Campo Esqueceu a Senha */}
-          <Pressable onPress={() => router.push("/(auth)/recuperar_senha")}>
-            <Text
-              style={[style.linkSenha, { textAlign: "right", marginBottom: 8 }]}
-            >
-              Esqueci minha senha
-            </Text>
-          </Pressable>
+      <Field
+        label="E-mail"
+        icon="mail-outline"
+        value={email}
+        onChangeText={(val) => {
+          setEmail(val);
+          if (erro) setErro(null);
+        }}
+        placeholder="seu.email@exemplo.com"
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+        returnKeyType="next"
+        editable={!ocupado}
+      />
 
-          {/* Botão Entrar */}
+      <Field
+        label="Senha"
+        icon="lock-closed-outline"
+        value={senha}
+        onChangeText={(val) => {
+          setSenha(val);
+          if (erro) setErro(null);
+        }}
+        placeholder="Digite sua senha"
+        secureTextEntry={!mostrarSenha}
+        returnKeyType="go"
+        onSubmitEditing={entrar}
+        editable={!ocupado}
+        labelRight={
           <Pressable
-            style={[style.button, carregando && style.buttonDisabled]}
-            onPress={entrar}
-            disabled={carregando}
+            onPress={() => router.push("/(auth)/recuperar_senha")}
+            disabled={ocupado}
+            hitSlop={6}
           >
-            <Text style={style.buttonText}>
-              {carregando ? "Entrando..." : "Entrar"}
-            </Text>
+            <Text style={s.linkMuted}>Esqueceu a senha?</Text>
           </Pressable>
+        }
+        rightSlot={
+          <Pressable onPress={() => setMostrarSenha((prev) => !prev)} hitSlop={8}>
+            <Ionicons
+              name={mostrarSenha ? "eye-off-outline" : "eye-outline"}
+              size={DS.icon.sm}
+              color={C.textSubtle}
+            />
+          </Pressable>
+        }
+      />
 
-          {/* Link para Cadastro */}
-          <View style={style.linkContainer}>
-            <Text style={style.linkText}>É novo por aqui? </Text>
-            <Pressable onPress={() => router.push("/(auth)/cadastro")}>
-              <Text style={style.link}>Cadastre-se</Text>
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <PrimaryButton
+        label="Acessar conta"
+        iconRight="arrow-forward"
+        onPress={entrar}
+        loading={carregando}
+        disabled={ocupado}
+        style={s.submit}
+      />
+
+      <FooterLink
+        text="Ainda não tem conta?"
+        link="Cadastre-se"
+        onPress={() => router.push("/(auth)/cadastro")}
+        disabled={ocupado}
+      />
+    </AuthLayout>
   );
 }
 
-export const style = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: COLORS.yellow,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  topArea: {
-    height: 95,
-  },
-  card: {
-    flex: 1,
-    backgroundColor: COLORS.white,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
-    paddingHorizontal: 24,
-    paddingTop: 28,
-  },
-  title: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 18,
-    color: COLORS.blue,
-    textAlign: "center",
-    marginBottom: 26,
-  },
-  label: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 12,
-    color: COLORS.blue,
-    marginBottom: 5,
-  },
-  inputContainer: {
-    height: 50,
-    backgroundColor: COLORS.gray,
-    borderRadius: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    marginBottom: 14,
-    gap: 10,
-  },
-  input: {
-    flex: 1,
-    fontFamily: "Poppins_400Regular",
-    fontSize: 12,
-    color: COLORS.black,
-  },
-  button: {
-    height: 50,
-    backgroundColor: COLORS.blue,
-    borderRadius: 10,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    fontFamily: "Poppins_600SemiBold",
-    color: COLORS.white,
-    fontSize: 13,
-  },
-  linkContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 20,
-  },
-  linkText: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 12,
-    color: COLORS.black,
-  },
-  link: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 12,
-    color: COLORS.yellow,
-  },
-  linkSenha: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 12,
-    color: COLORS.blue,
-  },
+const s = StyleSheet.create({
+  linkMuted: { fontSize: 12, fontFamily: DS.font.semibold, color: C.textMuted },
+  submit: { marginTop: 8 },
 });

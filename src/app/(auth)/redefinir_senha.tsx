@@ -1,25 +1,18 @@
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Alert, Pressable } from "react-native";
+import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 
 import * as AuthController from "@/controller/authController";
-import { COLORS } from "@/global/themes";
 import { supabase } from "@/lib/supabaseClient";
+import { DS } from "@/global/themes";
+import { AuthLayout, Field, FormHeader, PrimaryButton } from "@/components/ds";
 
 export default function RedefinirSenha() {
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
+  const [mostrarConfirmarSenha, setMostrarConfirmarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
 
   useEffect(() => {
@@ -53,150 +46,61 @@ export default function RedefinirSenha() {
     ]);
   }
 
+  const olho = (visivel: boolean, alternar: () => void) => (
+    <Pressable onPress={alternar} hitSlop={8}>
+      <Ionicons
+        name={visivel ? "eye-off-outline" : "eye-outline"}
+        size={DS.icon.sm}
+        color={DS.colors.textSubtle}
+      />
+    </Pressable>
+  );
+
   return (
-    <SafeAreaView style={style.container}>
-      <KeyboardAvoidingView
-        style={style.keyboard}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
-        <View style={style.content}>
-          <View style={style.card}>
-            <Text style={style.title}>Redefinir senha</Text>
+    <AuthLayout
+      actionLabel="Cancelar"
+      onActionPress={() => router.replace("/(auth)/login")}
+      onLogoPress={() => router.replace("/(auth)/login")}
+      scroll={false}
+      logoSize="sm"
+    >
+      <FormHeader
+        icon="lock-closed-outline"
+        eyebrow="Segurança da conta"
+        title="Criar nova senha"
+        subtitle="Digite e confirme sua nova senha para proteger seu acesso."
+      />
 
-            <Text style={style.description}>
-              Digite sua nova senha e confirme para finalizar a alteração.
-            </Text>
+      <Field
+        label="Nova senha"
+        icon="lock-closed-outline"
+        value={novaSenha}
+        onChangeText={setNovaSenha}
+        placeholder="Mínimo de 6 caracteres"
+        secureTextEntry={!mostrarNovaSenha}
+        editable={!carregando}
+        rightSlot={olho(mostrarNovaSenha, () => setMostrarNovaSenha((prev) => !prev))}
+      />
 
-            <Text style={style.label}>Nova senha</Text>
+      <Field
+        label="Confirmar nova senha"
+        icon="shield-checkmark-outline"
+        value={confirmarSenha}
+        onChangeText={setConfirmarSenha}
+        placeholder="Repita sua nova senha"
+        secureTextEntry={!mostrarConfirmarSenha}
+        editable={!carregando}
+        rightSlot={olho(mostrarConfirmarSenha, () =>
+          setMostrarConfirmarSenha((prev) => !prev)
+        )}
+      />
 
-            <View style={style.inputContainer}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={20}
-                color={COLORS.blue}
-              />
-              <TextInput
-                style={style.input}
-                value={novaSenha}
-                onChangeText={setNovaSenha}
-                placeholder="••••••••••"
-                placeholderTextColor={COLORS.placeholder}
-                secureTextEntry
-              />
-            </View>
-
-            <Text style={style.label}>Confirmar nova senha</Text>
-
-            <View style={style.inputContainer}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={20}
-                color={COLORS.blue}
-              />
-              <TextInput
-                style={style.input}
-                value={confirmarSenha}
-                onChangeText={setConfirmarSenha}
-                placeholder="••••••••••"
-                placeholderTextColor={COLORS.placeholder}
-                secureTextEntry
-              />
-            </View>
-
-            <Pressable
-              style={[style.button, carregando && style.buttonDisabled]}
-              onPress={redefinir}
-              disabled={carregando}
-            >
-              <Text style={style.buttonText}>
-                {carregando ? "Salvando..." : "Salvar nova senha"}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+      <PrimaryButton
+        label="Salvar nova senha"
+        iconRight="checkmark"
+        onPress={redefinir}
+        loading={carregando}
+      />
+    </AuthLayout>
   );
 }
-
-export const style = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-  keyboard: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    paddingHorizontal: 24,
-    paddingVertical: 28,
-    elevation: 4,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    borderWidth: 1,
-    borderColor: "#F0F0F0",
-  },
-  title: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 24,
-    color: "#1D1E64",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-  description: {
-    fontFamily: "Poppins_400Regular",
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#666666",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  label: {
-    fontFamily: "Poppins_600SemiBold",
-    fontSize: 14,
-    color: "#1D1E64",
-    marginBottom: 8,
-  },
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#D4D4D4",
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    height: 50,
-    marginBottom: 16,
-  },
-  input: {
-    flex: 1,
-    marginLeft: 10,
-    fontFamily: "Poppins_400Regular",
-    fontSize: 15,
-    color: "#000000",
-  },
-  button: {
-    height: 50,
-    backgroundColor: "#FFB101",
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    fontFamily: "Poppins_700Bold",
-    fontSize: 16,
-    color: "#1D1E64",
-  },
-});

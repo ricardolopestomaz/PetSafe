@@ -5,22 +5,25 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 
 function extrairTokensDaUrl(url: string) {
-  const partes = url.split('#');
+  const hashPart = url.split('#')[1];
+  const searchPart = url.split('?')[1];
+  const queryString = hashPart || searchPart;
 
-  if (partes.length < 2) {
+  if (!queryString) {
     return null;
   }
 
-  const params = new URLSearchParams(partes[1]);
+  const params = new URLSearchParams(queryString);
 
   const accessToken = params.get('access_token');
   const refreshToken = params.get('refresh_token');
+  const type = params.get('type');
 
   if (!accessToken || !refreshToken) {
     return null;
   }
 
-  return { accessToken, refreshToken };
+  return { accessToken, refreshToken, type };
 }
 
 async function tratarUrl(url: string | null) {
@@ -43,7 +46,11 @@ async function tratarUrl(url: string | null) {
     return;
   }
 
-  router.replace('/(auth)/recuperar_senha');
+  if (tokens.type === 'recovery') {
+    router.replace('/(auth)/recuperar_senha');
+  } else {
+    router.replace('/(tabs)');
+  }
 }
 
 export function useAuthDeepLink() {

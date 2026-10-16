@@ -11,10 +11,10 @@ import {
 } from "@expo-google-fonts/poppins";
 
 import { useAuthDeepLink } from "@/hooks/use-auth-deep-link";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { DS } from "@/global/themes";
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+
 
   useAuthDeepLink();
 
@@ -28,8 +28,7 @@ export default function RootLayout() {
     return null;
   }
 
-  const isDark = colorScheme === "dark";
-  const backgroundColor = isDark ? "#000000" : "#FFFFFF";
+  const backgroundColor = DS.colors.bg;
 
   return (
     <>
@@ -39,7 +38,7 @@ export default function RootLayout() {
           contentStyle: { backgroundColor },
         }}
       />
-      <StatusBar style={isDark ? "light" : "dark"} />
+      <StatusBar style="dark" />
     </>
   );
 }

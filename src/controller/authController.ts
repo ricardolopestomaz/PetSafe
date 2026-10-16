@@ -1,4 +1,5 @@
 import * as AuthModel from '@/model/authModel';
+import { PerfilUsuarioDTO } from '@/@types/auth';
 
 type Resultado = {
   sucesso: boolean;
@@ -35,6 +36,13 @@ export async function realizarLogin(
 
   const res = await AuthModel.login(emailLimpo, senha);
   if (!res.sucesso) {
+    if (res.mensagem?.includes('Forbidden use of secret API key')) {
+      return {
+        sucesso: false,
+        mensagem:
+          'Chave de API incorreta: Foi configurada a chave SECRETA (sb_secret_...). No painel do Supabase, copie a chave "anon" / "publishable" e cole no arquivo .env.',
+      };
+    }
     return {
       sucesso: false,
       mensagem: res.mensagem || 'Erro ao realizar login.',
@@ -44,6 +52,31 @@ export async function realizarLogin(
   return {
     sucesso: true,
   };
+}
+
+export async function realizarLoginGoogle(): Promise<Resultado> {
+  const res = await AuthModel.loginComGoogle();
+  if (!res.sucesso) {
+    if (res.mensagem?.includes('Forbidden use of secret API key')) {
+      return {
+        sucesso: false,
+        mensagem:
+          'Chave de API incorreta: Foi configurada a chave SECRETA (sb_secret_...). No painel do Supabase, copie a chave "anon" / "publishable" e cole no arquivo .env.',
+      };
+    }
+    return {
+      sucesso: false,
+      mensagem: res.mensagem || 'Erro ao realizar login com o Google.',
+    };
+  }
+
+  return {
+    sucesso: true,
+  };
+}
+
+export async function carregarUsuarioAtual(): Promise<PerfilUsuarioDTO | null> {
+  return await AuthModel.obterUsuarioAtual();
 }
 
 export async function realizarCadastro(
@@ -78,6 +111,13 @@ export async function realizarCadastro(
 
   const res = await AuthModel.cadastrar(nomeLimpo, emailLimpo, senha);
   if (!res.sucesso) {
+    if (res.mensagem?.includes('Forbidden use of secret API key')) {
+      return {
+        sucesso: false,
+        mensagem:
+          'Chave de API incorreta: Foi configurada a chave SECRETA (sb_secret_...). No painel do Supabase, copie a chave "anon" / "publishable" e cole no arquivo .env.',
+      };
+    }
     return {
       sucesso: false,
       mensagem: res.mensagem || 'Erro ao realizar cadastro.',
