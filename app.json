@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "petsafefront",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true
     },
@@ -18,12 +17,8 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.ricardo.tomaz.PetSafefront"
-    },
-    "androidNavigationBar": {
-      "visible": "sticky-immersive"
     },
     "web": {
       "output": "static",
@@ -31,6 +26,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-navigation-bar",
       [
         "expo-splash-screen",
         {
