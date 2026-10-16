@@ -17,7 +17,8 @@ import * as Location from "expo-location";
 import { COLORS } from "@/global/themes";
 import { Leitura } from "@/services/leituras";
 import { PetIconBySpecies } from "@/components/PetIcons";
-import { CardBadgeContainer, TiltCard } from "@/components/ds";
+import { CardBadgeContainer } from "@/components/ds";
+import { LinearGradient } from "expo-linear-gradient";
 import { generateLeafletHtml } from "./leafletHtml";
 
 export type PetMapProps = {
@@ -331,18 +332,8 @@ export default function PetMapNative({
                 const isLatest = index === 0;
                 const numOrdem = leituras.length - index;
 
-                return (
-                  <TiltCard
-                    variant={isAtivo ? "gradient" : "surface"}
-                    onPress={() => selecionarLeitura(item)}
-                    style={{ width: 250 }}
-                    contentStyle={[
-                      styles.cardScanInner,
-                      !isAtivo && styles.cardScanInactive,
-                    ]}
-                    padding={12}
-                    accessibilityLabel={`Escaneamento #${numOrdem} de ${item.pet?.nome || "PetSafe"}`}
-                  >
+                const cardConteudo = (
+                  <>
                     <View style={styles.cardScanTop}>
                       <View
                         style={[
@@ -481,7 +472,32 @@ export default function PetMapNative({
                         />
                       </TouchableOpacity>
                     </View>
-                  </TiltCard>
+                  </>
+                );
+
+                return (
+                  <TouchableOpacity
+                    style={[styles.cardScanOuter, isAtivo && styles.cardScanOuterAtivo]}
+                    onPress={() => selecionarLeitura(item)}
+                    activeOpacity={0.88}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Escaneamento #${numOrdem} de ${item.pet?.nome || "PetSafe"}`}
+                  >
+                    {isAtivo ? (
+                      <LinearGradient
+                        colors={["#1D4ED8", "#1E40AF"]}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={styles.cardScanInner}
+                      >
+                        {cardConteudo}
+                      </LinearGradient>
+                    ) : (
+                      <View style={[styles.cardScanInner, styles.cardScanInactive]}>
+                        {cardConteudo}
+                      </View>
+                    )}
+                  </TouchableOpacity>
                 );
               }}
             />
@@ -588,7 +604,20 @@ const styles = StyleSheet.create({
   },
 
   // Cards de Escaneamento
+  cardScanOuter: {
+    width: 250,
+    borderRadius: 14,
+    overflow: "hidden",
+  },
+  cardScanOuterAtivo: {
+    shadowColor: "#1D4ED8",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
+  },
   cardScanInner: {
+    padding: 12,
     borderRadius: 14,
     gap: 8,
   },

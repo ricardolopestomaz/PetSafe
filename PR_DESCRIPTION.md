@@ -21,7 +21,8 @@ Este Pull Request consolida as melhorias visuais, interativas e estruturais na b
     `transform: [{ perspective: 1000 }, { rotateX }, { rotateY }, { rotateZ }, { scale }]`.
   - **Na Web (Mouse)**: Acompanha suavemente o movimento do cursor com rotações dinâmicas (`rotateY` entre `-6deg` e `6deg`, `rotateZ` leve de `-1.5deg` e `scale: 1.02`), além de sombra projetada que ganha profundidade.
   - **No Mobile (Toque)**: Reage instantaneamente ao toque com `onPressIn` e `onPressOut` através de mola física elástica (`Animated.spring`).
-  - Aplicado ao Card do Pet (`src/app/pet/[id].tsx`), ao Banner de Acesso ao Mapa (`src/app/(tabs)/index.tsx`) e a todos os itens do carrossel de escaneamentos (`PetMap.web.tsx` e `PetMap.native.tsx`).
+  - **Onde é aplicado**: Ao Card do Pet (`src/app/pet/[id].tsx`) e ao Banner de Acesso ao Mapa (`src/app/(tabs)/index.tsx`).
+  - **Cards no Mapa**: O efeito 3D Tilt foi removido dos cards do carrossel no mapa (`PetMap.web.tsx` e `PetMap.native.tsx`) para garantir rolagem horizontal fluida e livre de rotações 3D, preservando o contraste AAA com LinearGradient e toque responsivo.
 
 ---
 
@@ -41,7 +42,7 @@ Este Pull Request consolida as melhorias visuais, interativas e estruturais na b
 
 ### 5. Novos Ícones Vetoriais SVG de Pets (`PetIcons.tsx`)
 - Substituição de emojis por ícones vetoriais SVG nítidos e personalizáveis:
-  - **Cachorro**: Ilustração vetorial completa em SVG com camadas de sombra e focinho.
+  - **Cachorro**: Ilustração vetorial completa em SVG com camadas de sombra e focinho, com os **olhos abertos, redondos e amigáveis** (corrigido para não ficarem fechados/em piscar).
   - **Gato**: Ilustração vetorial em SVG fiel aos traços geométricos modernos.
   - **Pata / Genérico**: SVG de pegada estilizada.
   - Componente inteligente `PetIconBySpecies` que detecta a espécie do pet e renderiza o ícone SVG correspondente com suporte a fallback de cores.
