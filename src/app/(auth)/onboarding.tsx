@@ -10,8 +10,9 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
-import { COLORS } from "@/global/themes";
+import { COLORS, DS } from "@/global/themes";
 import { PetSafeLogo } from "@/components/PetSafeLogo";
+import { PrimaryButton } from "@/components/ds";
 import { isAppOrMobileDevice } from "@/lib/device";
 
 // Imagens originais do onboarding cobrindo a tela
@@ -116,16 +117,12 @@ export default function Onboarding() {
           <Text style={style.description}>{slideAtual.description}</Text>
 
           {/* Botão de Avançar Manual - muda SOMENTE ao clicar em Continuar */}
-          <Pressable
-            style={({ pressed }) => [
-              style.primaryButton,
-              pressed && style.buttonPressed,
-            ]}
+          <PrimaryButton
+            label="Continuar"
+            iconRight="arrow-forward"
             onPress={handleContinuar}
-          >
-            <Text style={style.primaryButtonText}>Continuar</Text>
-            <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
-          </Pressable>
+            style={{ width: "100%" }}
+          />
 
           {/* Link para Login */}
           <Pressable
@@ -190,9 +187,9 @@ const style = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    backgroundColor: DS.colors.bg,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     paddingHorizontal: 28,
     paddingTop: 24,
     paddingBottom: 36,
@@ -216,14 +213,14 @@ const style = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#E2E8F0",
+    backgroundColor: DS.colors.divider,
   },
   activeIndicator: {
     backgroundColor: COLORS.yellow,
     width: 20,
   },
   title: {
-    color: "#111827",
+    color: DS.colors.text,
     fontSize: 18,
     fontFamily: "Poppins_700Bold",
     marginBottom: 8,
@@ -231,7 +228,7 @@ const style = StyleSheet.create({
     letterSpacing: -0.3,
   },
   description: {
-    color: "#6B7280",
+    color: DS.colors.textMuted,
     fontSize: 12,
     fontFamily: "Poppins_400Regular",
     textAlign: "center",
@@ -242,13 +239,13 @@ const style = StyleSheet.create({
   primaryButton: {
     width: "100%",
     height: 46,
-    backgroundColor: COLORS.blue,
-    borderRadius: 12,
+    backgroundColor: DS.colors.primary,
+    borderRadius: DS.radius.md,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    shadowColor: COLORS.blue,
+    shadowColor: "#000000",
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -269,10 +266,10 @@ const style = StyleSheet.create({
   secondaryLinkText: {
     fontSize: 12,
     fontFamily: "Poppins_400Regular",
-    color: "#6B7280",
+    color: DS.colors.textMuted,
   },
   secondaryLinkBold: {
     fontFamily: "Poppins_700Bold",
-    color: COLORS.blue,
+    color: DS.colors.text,
   },
 });

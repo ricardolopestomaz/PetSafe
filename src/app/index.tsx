@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { Redirect } from "expo-router";
 import { supabase } from "@/lib/supabaseClient";
-import { COLORS } from "@/global/themes";
+import { COLORS, DS } from "@/global/themes";
 import { isAppOrMobileDevice } from "@/lib/device";
 
 export default function Index() {
@@ -38,7 +38,7 @@ export default function Index() {
           flex: 1,
           justifyContent: "center",
           alignItems: "center",
-          backgroundColor: COLORS.blue,
+          backgroundColor: DS.colors.bg,
         }}
       >
         <ActivityIndicator size="large" color={COLORS.yellow} />

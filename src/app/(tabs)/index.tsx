@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Animated,
+  Easing,
   FlatList,
   Image,
   Pressable,
@@ -19,9 +21,11 @@ import {
   Octicons,
 } from "@expo/vector-icons";
 
-import { COLORS } from "@/global/themes";
+import { COLORS, DS } from "@/global/themes";
+import { supabase } from "@/lib/supabaseClient";
 import { listarMeusPets, Pet } from "@/services/pets";
 import { styles } from "@/styles/homeStyles";
+import { SquishyPressable, StaggerFadeItem } from "@/components/ds";
 
 // Importação dos banners em PNG
 import Banner1 from "@/assets/banners/banner1.png";
@@ -64,6 +68,20 @@ export default function Home() {
   const [carregandoPets, setCarregandoPets] = useState(true);
 
   const [opacidade] = useState(() => new Animated.Value(1));
+  const [saindo, setSaindo] = useState(false);
+
+  // Encerra a sessão e volta para o login
+  async function sair() {
+    try {
+      setSaindo(true);
+      await supabase.auth.signOut();
+      router.replace("/(auth)/login");
+    } catch {
+      Alert.alert("Erro", "Não foi possível encerrar a sessão.");
+    } finally {
+      setSaindo(false);
+    }
+  }
 
   // Carrega pets da API
   async function carregarPets() {
@@ -108,6 +126,34 @@ export default function Home() {
     };
   }, []);
 
+  // Animação de entrada em cascata (Staggered Fade-in)
+  const animHeader = useRef(new Animated.Value(0)).current;
+  const animCard = useRef(new Animated.Value(0)).current;
+  const animSection = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.stagger(100, [
+      Animated.timing(animHeader, {
+        toValue: 1,
+        duration: 380,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(animCard, {
+        toValue: 1,
+        duration: 400,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(animSection, {
+        toValue: 1,
+        duration: 420,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [animHeader, animCard, animSection]);
+
   // Animação de Fade automática dos banners
   useEffect(() => {
     const intervalo = setInterval(() => {
@@ -140,164 +186,236 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
-            {/* NOME DINÂMICO */}
-            <Text style={styles.titulo}>Olá, {primeiroNome}!</Text>
-
-            <View style={styles.bannerWrapper}>
-              <Animated.View
-                style={[styles.bannerContainer, { opacity: opacidade }]}
-              >
-                <Image
-                  source={banners[indiceAtual].imagem}
-                  style={styles.imagemBanner}
-                  resizeMode="cover"
-                />
-
-                <View style={styles.textoBanner}>
-                  <Text style={styles.tituloBanner} numberOfLines={2}>
-                    {banners[indiceAtual].titulo}
-                  </Text>
-                  <Text style={styles.subtituloBanner} numberOfLines={2}>
-                    {banners[indiceAtual].subtitulo}
+            {/* BLOCO 1: CABEÇALHO (SAUDAÇÃO + LOGOUT SQUISHY) */}
+            <StaggerFadeItem animValue={animHeader}>
+              <View style={styles.topo}>
+                <View style={styles.saudacaoWrapper}>
+                  <Text style={styles.saudacaoLabel}>Bem-vindo de volta</Text>
+                  <Text style={styles.titulo} numberOfLines={1}>
+                    Olá, {primeiroNome}!
                   </Text>
                 </View>
-              </Animated.View>
-            </View>
 
-            {/* INDICADORES DO CARROSSEL */}
-            <View style={styles.indicadores}>
-              {banners.map((_, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.indicador,
-                    index === indiceAtual && styles.indicadorAtivo,
-                  ]}
-                />
-              ))}
-            </View>
-
-            {/* FILTROS HORIZONTAIS COM SCROLL */}
-            <View style={styles.scrollWrapper}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.containerBotoesScroll}
-              >
-                <TouchableOpacity
-                  style={
-                    filtroAtivo === "pets" ? styles.botaoAtivo : styles.botao
-                  }
-                  onPress={() => setFiltroAtivo("pets")}
+                <SquishyPressable
+                  onPress={sair}
+                  disabled={saindo}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Sair da conta"
+                  iconAnimType="slide"
                 >
-                  <Text
+                  {({ iconStyle }) => (
+                    <View
+                      style={[
+                        styles.botaoSair,
+                        saindo && { opacity: 0.5 },
+                      ]}
+                    >
+                      {saindo ? (
+                        <ActivityIndicator size="small" color={DS.colors.text} />
+                      ) : (
+                        <Animated.View style={iconStyle}>
+                          <Ionicons
+                            name="log-out-outline"
+                            size={DS.icon.md}
+                            color={DS.colors.text}
+                          />
+                        </Animated.View>
+                      )}
+                    </View>
+                  )}
+                </SquishyPressable>
+              </View>
+            </StaggerFadeItem>
+
+            {/* BLOCO 2: CARD PRINCIPAL (BANNER CARROSSEL + INDICADORES) */}
+            <StaggerFadeItem animValue={animCard}>
+              <View style={styles.bannerWrapper}>
+                <Animated.View
+                  style={[styles.bannerContainer, { opacity: opacidade }]}
+                >
+                  <Image
+                    source={banners[indiceAtual].imagem}
+                    style={styles.imagemBanner}
+                    resizeMode="cover"
+                  />
+
+                  <View style={styles.textoBanner}>
+                    <Text style={styles.tituloBanner} numberOfLines={2}>
+                      {banners[indiceAtual].titulo}
+                    </Text>
+                    <Text style={styles.subtituloBanner} numberOfLines={2}>
+                      {banners[indiceAtual].subtitulo}
+                    </Text>
+                  </View>
+                </Animated.View>
+              </View>
+
+              {/* INDICADORES DO CARROSSEL */}
+              <View style={styles.indicadores}>
+                {banners.map((_, index) => (
+                  <View
+                    key={index}
+                    style={[
+                      styles.indicador,
+                      index === indiceAtual && styles.indicadorAtivo,
+                    ]}
+                  />
+                ))}
+              </View>
+            </StaggerFadeItem>
+
+            {/* BLOCO 3: SEÇÃO SEGUINTE (FILTROS + LISTA DE OPÇÕES / PETS) */}
+            <StaggerFadeItem animValue={animSection}>
+              {/* FILTROS HORIZONTAIS COM SCROLL */}
+              <View style={styles.scrollWrapper}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.containerBotoesScroll}
+                >
+                  <SquishyPressable
                     style={
-                      filtroAtivo === "pets"
-                        ? styles.textoBotaoAtivo
-                        : styles.textoBotao
+                      filtroAtivo === "pets" ? styles.botaoAtivo : styles.botao
                     }
+                    onPress={() => setFiltroAtivo("pets")}
                   >
-                    Meus Pets
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={
+                        filtroAtivo === "pets"
+                          ? styles.textoBotaoAtivo
+                          : styles.textoBotao
+                      }
+                    >
+                      Meus Pets
+                    </Text>
+                  </SquishyPressable>
 
-                <TouchableOpacity
-                  style={
-                    filtroAtivo === "historico"
-                      ? styles.botaoAtivo
-                      : styles.botao
-                  }
-                  onPress={() => setFiltroAtivo("historico")}
-                >
-                  <Text
+                  <SquishyPressable
                     style={
                       filtroAtivo === "historico"
-                        ? styles.textoBotaoAtivo
-                        : styles.textoBotao
+                        ? styles.botaoAtivo
+                        : styles.botao
                     }
+                    onPress={() => setFiltroAtivo("historico")}
                   >
-                    Histórico de Escaneamento
-                  </Text>
-                </TouchableOpacity>
+                    <Text
+                      style={
+                        filtroAtivo === "historico"
+                          ? styles.textoBotaoAtivo
+                          : styles.textoBotao
+                      }
+                    >
+                      Histórico de Escaneamento
+                    </Text>
+                  </SquishyPressable>
 
-                <TouchableOpacity
-                  style={
-                    filtroAtivo === "outro" ? styles.botaoAtivo : styles.botao
-                  }
-                  onPress={() => setFiltroAtivo("outro")}
-                >
-                  <Text
+                  <SquishyPressable
                     style={
-                      filtroAtivo === "outro"
-                        ? styles.textoBotaoAtivo
-                        : styles.textoBotao
+                      filtroAtivo === "outro" ? styles.botaoAtivo : styles.botao
                     }
+                    onPress={() => setFiltroAtivo("outro")}
                   >
-                    Parcerias
+                    <Text
+                      style={
+                        filtroAtivo === "outro"
+                          ? styles.textoBotaoAtivo
+                          : styles.textoBotao
+                      }
+                    >
+                      Parcerias
+                    </Text>
+                  </SquishyPressable>
+                </ScrollView>
+              </View>
+
+              {/* CABEÇALHO DA SEÇÃO DE PETS */}
+              {filtroAtivo === "pets" && (
+                <View style={styles.headerAcoes}>
+                  <Text style={styles.textoSecao}>Meus Pets</Text>
+                  <SquishyPressable
+                    style={styles.adicionar}
+                    onPress={() => router.push("/pet/novo" as any)}
+                    iconAnimType="rotate"
+                  >
+                    {({ iconStyle }) => (
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                        <Animated.View style={iconStyle}>
+                          <Ionicons
+                            name="add"
+                            size={DS.icon.sm}
+                            color={DS.colors.text}
+                          />
+                        </Animated.View>
+                        <Text style={styles.textoAdicionar}>Adicionar</Text>
+                      </View>
+                    )}
+                  </SquishyPressable>
+                </View>
+              )}
+
+              {/* LOADING STATE DA LISTA (skeleton) */}
+              {filtroAtivo === "pets" && carregandoPets && (
+                <View style={styles.loading}>
+                  {[0, 1, 2].map((i) => (
+                    <View key={i} style={styles.skeletonRow}>
+                      <View style={styles.skeletonAvatar} />
+                      <View style={styles.skeletonLines}>
+                        <View style={styles.skeletonLineLg} />
+                        <View style={styles.skeletonLineSm} />
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* EMPTY STATE DA LISTA */}
+              {filtroAtivo === "pets" && !carregandoPets && pets.length === 0 && (
+                <View style={styles.emptyContainer}>
+                  <View style={styles.emptyIconCircle}>
+                    <Ionicons
+                      name="paw-outline"
+                      size={36}
+                      color={DS.colors.textSubtle}
+                    />
+                  </View>
+                  <Text style={styles.emptyText}>
+                    Nenhum pet cadastrado ainda.
                   </Text>
-                </TouchableOpacity>
-              </ScrollView>
-            </View>
+                </View>
+              )}
 
-            {/* CABEÇALHO DA SEÇÃO DE PETS */}
-            {filtroAtivo === "pets" && (
-              <View style={styles.headerAcoes}>
-                <Text style={styles.textoSecao}>Meus Pets</Text>
-                <TouchableOpacity
-                  style={styles.adicionar}
-                  onPress={() => router.push("/pet/novo" as any)}
-                >
-                  <Text style={styles.textoAdicionar}>+ Adicionar</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {/* LOADING STATE DA LISTA */}
-            {filtroAtivo === "pets" && carregandoPets && (
-              <ActivityIndicator
-                size="large"
-                color={COLORS.blue}
-                style={styles.loading}
-              />
-            )}
-
-            {/* EMPTY STATE DA LISTA */}
-            {filtroAtivo === "pets" && !carregandoPets && pets.length === 0 && (
-              <View style={styles.emptyContainer}>
-                <Ionicons
-                  name="paw-outline"
-                  size={64}
-                  color={COLORS.placeholder || "#999999"}
-                />
-                <Text style={styles.emptyText}>
-                  Nenhum pet cadastrado ainda.
-                </Text>
-              </View>
-            )}
-
-            {filtroAtivo !== "pets" && (
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>Em breve...</Text>
-              </View>
-            )}
+              {filtroAtivo !== "pets" && (
+                <View style={styles.emptyContainer}>
+                  <Text style={styles.emptyText}>Em breve...</Text>
+                </View>
+              )}
+            </StaggerFadeItem>
           </>
         }
         renderItem={({ item }) => {
           if (filtroAtivo !== "pets") return null;
 
           return (
-            <Pressable
+            <SquishyPressable
               style={styles.card}
               onPress={() => router.push(`/pet/${item.id}` as any)}
             >
+              <View style={styles.petAvatar}>
+                <Ionicons name="paw" size={20} color={DS.colors.cardText} />
+              </View>
               <View style={styles.cardInfo}>
                 <Text style={styles.petName}>{item.nome}</Text>
                 <Text style={styles.petDetails}>
                   {item.especie} • {item.raca || "Sem raça definida"}
                 </Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color={COLORS.blue} />
-            </Pressable>
+              <Ionicons
+                name="chevron-forward"
+                size={DS.icon.sm}
+                color={DS.colors.textSubtle}
+              />
+            </SquishyPressable>
           );
         }}
       />

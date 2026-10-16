@@ -1,26 +1,61 @@
 import { Dimensions, StyleSheet } from "react-native";
-import { COLORS } from "../global/themes";
+import { COLORS, DS } from "../global/themes";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PADDING_HORIZONTAL = 24;
+const C = DS.colors;
 
 export const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.white,
+    backgroundColor: C.bg,
   },
 
   conteudo: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: PADDING_HORIZONTAL,
+    paddingBottom: 24,
+    width: "100%",
+    maxWidth: 720,
+    alignSelf: "center",
   },
 
+  /* Cabeçalho com saudação e logout */
+  topo: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 24,
+    marginBottom: 24,
+  },
+  saudacaoWrapper: {
+    flex: 1,
+    paddingRight: 16,
+  },
+  saudacaoLabel: {
+    fontSize: 13,
+    fontFamily: "Poppins_400Regular",
+    color: C.textMuted,
+  },
   titulo: {
-    marginTop: 60,
-    marginBottom: 10,
-    fontSize: 22,
+    fontSize: 26,
     fontFamily: "Poppins_700Bold",
-    color: "#2C2C2E",
+    color: C.text,
+    letterSpacing: -0.6,
+  },
+  botaoSair: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  botaoSairPressionado: {
+    transform: [{ scale: 0.96 }],
+    opacity: 0.85,
   },
 
   /* Banner Responsivo */
@@ -32,7 +67,7 @@ export const styles = StyleSheet.create({
   bannerContainer: {
     width: "100%",
     height: "100%",
-    borderRadius: 16,
+    borderRadius: DS.radius.xl,
     overflow: "hidden",
     position: "relative",
   },
@@ -70,20 +105,21 @@ export const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    marginTop: 10,
-    marginBottom: 10,
+    marginTop: 14,
+    marginBottom: 20,
   },
 
   indicador: {
-    width: 18,
+    width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: COLORS.cinzaclaro,
+    backgroundColor: C.divider,
     marginHorizontal: 3,
   },
 
   indicadorAtivo: {
-    backgroundColor: COLORS.roxoclaro,
+    width: 18,
+    backgroundColor: C.primary,
   },
 
   /* Filtros com Scroll Horizontal */
@@ -95,91 +131,156 @@ export const styles = StyleSheet.create({
     paddingHorizontal: PADDING_HORIZONTAL,
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
   },
 
   botaoAtivo: {
-    backgroundColor: COLORS.yellow,
+    backgroundColor: C.primary,
     paddingVertical: 10,
     paddingHorizontal: 18,
-    borderRadius: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.primary,
   },
 
   textoBotaoAtivo: {
-    color: COLORS.white,
+    color: C.primaryText,
     fontSize: 13,
     fontFamily: "Poppins_600SemiBold",
   },
 
   botao: {
-    backgroundColor: COLORS.white,
+    backgroundColor: "transparent",
     paddingVertical: 10,
     paddingHorizontal: 18,
-    borderRadius: 12,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: C.border,
   },
 
   textoBotao: {
-    color: COLORS.cinzaclaro,
+    color: C.textMuted,
     fontSize: 13,
     fontFamily: "Poppins_400Regular",
   },
 
-  /* Botoes de Ação acima da lista */
+  /* Cabeçalho da seção */
   headerAcoes: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 20,
-    marginBottom: 10,
+    marginTop: 32,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.divider,
   },
 
   textoSecao: {
-    color: COLORS.black,
-    fontSize: 16,
+    color: C.text,
+    fontSize: 18,
     fontFamily: "Poppins_700Bold",
+    letterSpacing: -0.3,
   },
 
   adicionar: {
-    padding: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
   },
 
   textoAdicionar: {
-    color: COLORS.blue,
+    color: C.text,
     fontSize: 14,
-    fontFamily: "Poppins_700Bold",
+    fontFamily: "Poppins_600SemiBold",
   },
 
-  /* Lista de Pets */
+  /* Loading (skeleton) */
   loading: {
-    marginTop: 40,
+    marginTop: 8,
+  },
+  skeletonRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 18,
+    gap: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.divider,
+  },
+  skeletonAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: C.divider,
+  },
+  skeletonLines: {
+    flex: 1,
+    gap: 8,
+  },
+  skeletonLineLg: {
+    height: 12,
+    width: "50%",
+    borderRadius: 6,
+    backgroundColor: C.divider,
+  },
+  skeletonLineSm: {
+    height: 10,
+    width: "30%",
+    borderRadius: 5,
+    backgroundColor: C.divider,
   },
 
+  /* Empty state */
   emptyContainer: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    paddingTop: 40,
+    justifyContent: "center",
+    paddingTop: 48,
+    paddingBottom: 24,
+  },
+
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
   },
 
   emptyText: {
-    marginTop: 12,
+    marginTop: 16,
     fontSize: 14,
     fontFamily: "Poppins_400Regular",
-    color: COLORS.placeholder,
+    color: C.textMuted,
+    textAlign: "center",
   },
 
   listContent: {
     paddingBottom: 20,
   },
 
+  /* Linha de pet (lista aberta, sem caixa) */
   card: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    padding: 16,
-    backgroundColor: COLORS.gray,
-    borderRadius: 12,
-    marginBottom: 12,
+    paddingVertical: 16,
+    gap: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.divider,
+  },
+  cardPressionado: {
+    opacity: 0.6,
+  },
+  petAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: C.card,
   },
   cardInfo: {
     flex: 1,
@@ -187,12 +288,12 @@ export const styles = StyleSheet.create({
   petName: {
     fontSize: 16,
     fontFamily: "Poppins_600SemiBold",
-    color: COLORS.blue,
+    color: C.text,
   },
   petDetails: {
     fontSize: 12,
     fontFamily: "Poppins_400Regular",
-    color: COLORS.black,
+    color: C.textMuted,
     marginTop: 2,
   },
 
@@ -202,10 +303,10 @@ export const styles = StyleSheet.create({
     justifyContent: "space-around",
     alignItems: "center",
     height: 70,
-    backgroundColor: COLORS.white,
+    backgroundColor: C.bg,
     paddingBottom: 10,
-    borderTopColor: COLORS.white,
-    borderTopWidth: 1,
+    borderTopColor: C.divider,
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
 
   itemRodape: {
