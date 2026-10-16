@@ -121,6 +121,7 @@ export default function PetDetails() {
                 <PetMap
                   leituras={leituras}
                   mostrarControles={false}
+                  mostrarCarousel={false}
                   style={styles.mapaPreview}
                 />
               </View>

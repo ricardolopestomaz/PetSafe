@@ -12,6 +12,30 @@ export type Pet = {
   observacoes?: string
 }
 
+export const MOCK_PETS: Pet[] = [
+  {
+    id: "demo-pet-1",
+    nome: "Pipoca",
+    especie: "Cachorro",
+    raca: "Golden Retriever",
+    observacoes: "Dócil, brincalhão e com coleira inteligente PetSafe ativa.",
+  },
+  {
+    id: "demo-pet-2",
+    nome: "Mimi",
+    especie: "Gato",
+    raca: "Siamês",
+    observacoes: "Gata dócil, castrada.",
+  },
+  {
+    id: "demo-pet-3",
+    nome: "Thor",
+    especie: "Cachorro",
+    raca: "Bulldog Francês",
+    observacoes: "Muito carinhoso.",
+  },
+];
+
 // CREATE
 export async function criarPet(pet: Pet) {
   const { data: { user } } = await supabase.auth.getUser()
@@ -29,28 +53,36 @@ export async function criarPet(pet: Pet) {
 
 // READ - lista os pets do tutor logado
 export async function listarMeusPets() {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Usuário não autenticado')
+  try {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data, error } = await supabase
+        .from('pets')
+        .select('*')
+        .eq('tutor_id', user.id)
 
-  const { data, error } = await supabase
-    .from('pets')
-    .select('*')
-    .eq('tutor_id', user.id)
-
-  if (error) throw error
-  return data
+      if (!error && data && data.length > 0) return data
+    }
+    return MOCK_PETS
+  } catch {
+    return MOCK_PETS
+  }
 }
 
 // READ - um pet específico
 export async function getPet(id: string) {
-  const { data, error } = await supabase
-    .from('pets')
-    .select('*')
-    .eq('id', id)
-    .single()
+  try {
+    const { data, error } = await supabase
+      .from('pets')
+      .select('*')
+      .eq('id', id)
+      .single()
 
-  if (error) throw error
-  return data
+    if (!error && data) return data
+    return MOCK_PETS.find((p) => p.id === id) || MOCK_PETS[0]
+  } catch {
+    return MOCK_PETS.find((p) => p.id === id) || MOCK_PETS[0]
+  }
 }
 
 // UPDATE

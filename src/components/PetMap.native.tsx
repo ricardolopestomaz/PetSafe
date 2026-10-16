@@ -1,14 +1,16 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  FlatList,
   Linking,
   Platform,
+  Share,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import MapView, { Marker, Region } from "react-native-maps";
+import MapView, { Marker, Polyline, Region } from "react-native-maps";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 
@@ -19,43 +21,54 @@ export type PetMapProps = {
   leituras: Leitura[];
   leituraSelecionada?: Leitura | null;
   onSelecionarLeitura?: (leitura: Leitura) => void;
+  mostrarTrajeto?: boolean;
   style?: object;
   mostrarControles?: boolean;
+  mostrarCarousel?: boolean;
 };
 
-export default function PetMap({
+export default function PetMapNative({
   leituras,
   leituraSelecionada,
   onSelecionarLeitura,
+  mostrarTrajeto = true,
   style,
   mostrarControles = true,
+  mostrarCarousel = true,
 }: PetMapProps) {
   const mapRef = useRef<MapView>(null);
+  const listRef = useRef<FlatList>(null);
   const [localizacaoUsuario, setLocalizacaoUsuario] =
     useState<Location.LocationObjectCoords | null>(null);
   const [obtendoLocal, setObtendoLocal] = useState(false);
-  const [itemAtivo, setItemAtivo] = useState<Leitura | null>(
-    leituraSelecionada || (leituras.length > 0 ? leituras[0] : null)
-  );
+  const [recolhido, setRecolhido] = useState(false);
+  const [itemAtivoManual, setItemAtivoManual] = useState<Leitura | null>(null);
+  const itemAtivo =
+    leituraSelecionada ??
+    itemAtivoManual ??
+    (leituras.length > 0 ? leituras[0] : null);
 
-  // Região inicial padrão (Palmas - TO, sede da UFT ou ponto do pet)
+  // Região inicial padrão
   const defaultRegion: Region = {
-    latitude:
-      leituras.length > 0 ? leituras[0].latitude : -10.1843,
-    longitude:
-      leituras.length > 0 ? leituras[0].longitude : -48.3336,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
+    latitude: leituras.length > 0 ? leituras[0].latitude : -10.1843,
+    longitude: leituras.length > 0 ? leituras[0].longitude : -48.3336,
+    latitudeDelta: 0.04,
+    longitudeDelta: 0.04,
   };
 
   useEffect(() => {
     if (leituraSelecionada) {
-      Promise.resolve().then(() => {
-        setItemAtivo(leituraSelecionada);
-        centralizarEmLeitura(leituraSelecionada);
-      });
+      centralizarEmLeitura(leituraSelecionada);
+      const idx = leituras.findIndex((l) => l.id === leituraSelecionada.id);
+      if (idx >= 0 && listRef.current) {
+        try {
+          listRef.current.scrollToIndex({ index: idx, animated: true });
+        } catch {
+          // ignora caso lista não esteja pronta
+        }
+      }
     }
-  }, [leituraSelecionada]);
+  }, [leituraSelecionada, leituras]);
 
   // Centraliza o mapa em uma leitura específica
   function centralizarEmLeitura(leitura: Leitura) {
@@ -64,11 +77,24 @@ export default function PetMap({
         {
           latitude: leitura.latitude,
           longitude: leitura.longitude,
-          latitudeDelta: 0.015,
-          longitudeDelta: 0.015,
+          latitudeDelta: 0.012,
+          longitudeDelta: 0.012,
         },
         800
       );
+    }
+  }
+
+  // Centraliza no scan mais recente (#1)
+  function centralizarNoMaisRecente() {
+    if (leituras.length > 0) {
+      const maisRecente = leituras[0];
+      setItemAtivoManual(maisRecente);
+      if (onSelecionarLeitura) onSelecionarLeitura(maisRecente);
+      centralizarEmLeitura(maisRecente);
+      if (listRef.current) {
+        listRef.current.scrollToIndex({ index: 0, animated: true });
+      }
     }
   }
 
@@ -87,7 +113,7 @@ export default function PetMap({
     }));
 
     mapRef.current.fitToCoordinates(coordenadas, {
-      edgePadding: { top: 60, right: 60, bottom: 120, left: 60 },
+      edgePadding: { top: 60, right: 60, bottom: 140, left: 60 },
       animated: true,
     });
   }
@@ -137,7 +163,7 @@ export default function PetMap({
     const url = Platform.select({
       ios: `maps:0,0?q=${label}@${lat},${lng}`,
       android: `geo:0,0?q=${lat},${lng}(${label})`,
-      default: `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`,
+      default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
     });
 
     if (url) {
@@ -147,19 +173,34 @@ export default function PetMap({
     }
   }
 
-  function formatarData(dataStr: string) {
+  async function compartilharLeitura(leitura: Leitura) {
     try {
-      const data = new Date(dataStr);
-      return data.toLocaleString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const petNome = leitura.pet?.nome || "Cachorro PetSafe";
+      const texto = `📍 Localização de ${petNome}: ${
+        leitura.endereco_aproximado || "Medalha escaneada"
+      }. Veja no mapa: https://www.google.com/maps/search/?api=1&query=${
+        leitura.latitude
+      },${leitura.longitude}`;
+      await Share.share({ message: texto });
     } catch {
-      return dataStr;
+      // Ignora erro
     }
   }
+
+  function formatarHora(isoString: string) {
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    } catch {
+      return "";
+    }
+  }
+
+  // Coordenadas para o traçado de rota
+  const coordenadasTrajeto = leituras.map((l) => ({
+    latitude: l.latitude,
+    longitude: l.longitude,
+  }));
 
   return (
     <View style={[styles.container, style]}>
@@ -170,8 +211,20 @@ export default function PetMap({
         showsUserLocation={!!localizacaoUsuario}
         showsMyLocationButton={false}
       >
-        {leituras.map((leitura) => {
+        {/* LINHA DE TRAJETO ENTRE ESCANEAMENTOS */}
+        {mostrarTrajeto && coordenadasTrajeto.length > 1 && (
+          <Polyline
+            coordinates={coordenadasTrajeto}
+            strokeColor={COLORS.blue}
+            strokeWidth={3.5}
+            lineDashPattern={[8, 6]}
+          />
+        )}
+
+        {leituras.map((leitura, index) => {
           const isAtivo = itemAtivo?.id === leitura.id;
+          const isLatest = index === 0;
+          const numOrdem = leituras.length - index;
 
           return (
             <Marker
@@ -181,34 +234,63 @@ export default function PetMap({
                 longitude: leitura.longitude,
               }}
               onPress={() => {
-                setItemAtivo(leitura);
+                setItemAtivoManual(leitura);
                 if (onSelecionarLeitura) {
                   onSelecionarLeitura(leitura);
                 }
                 centralizarEmLeitura(leitura);
+                const idx = leituras.findIndex((l) => l.id === leitura.id);
+                if (idx >= 0 && listRef.current) {
+                  try {
+                    listRef.current.scrollToIndex({
+                      index: idx,
+                      animated: true,
+                    });
+                  } catch {
+                    // ignora
+                  }
+                }
               }}
             >
-              <View
-                style={[
-                  styles.markerContainer,
-                  isAtivo && styles.markerContainerAtivo,
-                ]}
-              >
+              <View style={styles.markerContainer}>
+                {/* Badge de ordem / Mais recente */}
+                <View
+                  style={[
+                    styles.badgePin,
+                    isLatest && styles.badgePinLatest,
+                    isAtivo && styles.badgePinAtivo,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.textoBadgePin,
+                      isLatest && styles.textoBadgePinLatest,
+                    ]}
+                  >
+                    {isLatest ? "★ #1 Recente" : `#${numOrdem}`}
+                  </Text>
+                </View>
+
+                {/* Pulso de radar para o ponto mais recente */}
+                {isLatest && <View style={styles.radarPulseNative} />}
+
                 <View
                   style={[
                     styles.markerIconWrapper,
+                    isLatest && styles.markerIconWrapperLatest,
                     isAtivo && styles.markerIconWrapperAtivo,
                   ]}
                 >
                   <MaterialCommunityIcons
                     name="paw"
                     size={isAtivo ? 20 : 16}
-                    color={COLORS.white}
+                    color={isLatest ? COLORS.blue : COLORS.white}
                   />
                 </View>
                 <View
                   style={[
                     styles.markerPonta,
+                    isLatest && styles.markerPontaLatest,
                     isAtivo && styles.markerPontaAtiva,
                   ]}
                 />
@@ -223,15 +305,14 @@ export default function PetMap({
         <View style={styles.controlesFlutuantes}>
           <TouchableOpacity
             style={styles.botaoFlutuante}
-            onPress={irParaMinhaLocalizacao}
-            disabled={obtendoLocal}
-            accessibilityLabel="Minha localização"
+            onPress={centralizarNoMaisRecente}
+            accessibilityLabel="Último escaneamento"
           >
-            {obtendoLocal ? (
-              <ActivityIndicator size="small" color={COLORS.blue} />
-            ) : (
-              <Ionicons name="locate" size={22} color={COLORS.blue} />
-            )}
+            <MaterialCommunityIcons
+              name="crosshairs-gps"
+              size={22}
+              color={COLORS.yellow}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -245,53 +326,162 @@ export default function PetMap({
               color={COLORS.blue}
             />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.botaoFlutuante}
+            onPress={irParaMinhaLocalizacao}
+            disabled={obtendoLocal}
+            accessibilityLabel="Minha localização"
+          >
+            {obtendoLocal ? (
+              <ActivityIndicator size="small" color={COLORS.blue} />
+            ) : (
+              <Ionicons name="navigate" size={20} color={COLORS.blue} />
+            )}
+          </TouchableOpacity>
         </View>
       )}
 
-      {/* CARD FLUTUANTE DA LEITURA SELECIONADA */}
-      {itemAtivo && (
-        <View style={styles.cardInfo}>
-          <View style={styles.cardHeader}>
-            <View style={styles.tagIcone}>
-              <Ionicons name="shield-checkmark" size={16} color={COLORS.white} />
-            </View>
-            <View style={styles.cardTituloContainer}>
-              <Text style={styles.cardPetNome}>
-                {itemAtivo.pet?.nome || "Medalha PetSafe"}
-              </Text>
-              <Text style={styles.cardData}>
-                {formatarData(itemAtivo.criado_em)}
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => abrirNoMapaExterno(itemAtivo)}
-              style={styles.botaoRota}
-            >
-              <Ionicons name="navigate" size={16} color={COLORS.blue} />
-              <Text style={styles.textoBotaoRota}>Rota</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.cardDivisor} />
-
-          <View style={styles.cardDetalhes}>
-            <Ionicons name="location-sharp" size={16} color={COLORS.yellow} />
-            <Text style={styles.cardEndereco} numberOfLines={2}>
-              {itemAtivo.endereco_aproximado ||
-                `${itemAtivo.bairro || ""} ${itemAtivo.cidade || ""}`.trim() ||
-                `Lat: ${itemAtivo.latitude.toFixed(4)}, Long: ${itemAtivo.longitude.toFixed(4)}`}
-            </Text>
-          </View>
-
-          {itemAtivo.lido_por_dispositivo && (
-            <View style={styles.cardSubdetalhe}>
-              <Ionicons name="phone-portrait-outline" size={13} color={COLORS.roxoclaro} />
-              <Text style={styles.cardDispositivo}>
-                Lido por: {itemAtivo.lido_por_dispositivo}
+      {/* CAROUSEL HORIZONTAL INFERIOR DE ÚLTIMOS ESCANEAMENTOS */}
+      {mostrarCarousel && (
+        <View style={styles.carouselContainer}>
+          <TouchableOpacity
+            style={styles.carouselHeader}
+            onPress={() => setRecolhido(!recolhido)}
+            activeOpacity={0.7}
+            accessibilityLabel={
+              recolhido
+                ? "Expandir lista de escaneamentos"
+                : "Minimizar lista de escaneamentos"
+            }
+          >
+            <View style={styles.carouselHeaderLeft}>
+              <MaterialCommunityIcons
+                name="history"
+                size={18}
+                color={COLORS.blue}
+              />
+              <Text style={styles.carouselTitulo}>Últimos Escaneamentos</Text>
+              <Text style={styles.carouselContador}>
+                • {leituras.length}{" "}
+                {leituras.length === 1 ? "registro" : "registros"}
               </Text>
             </View>
+            <View style={styles.botaoToggleRecolhido}>
+              <Text style={styles.textoToggleRecolhido}>
+                {recolhido ? "Ver Lista" : "Minimizar"}
+              </Text>
+              <Ionicons
+                name={recolhido ? "chevron-up" : "chevron-down"}
+                size={16}
+                color={COLORS.blue}
+              />
+            </View>
+          </TouchableOpacity>
+
+          {!recolhido && (
+            <FlatList
+              ref={listRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={leituras}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.carouselLista}
+          renderItem={({ item, index }) => {
+            const isAtivo = itemAtivo?.id === item.id;
+            const isLatest = index === 0;
+            const numOrdem = leituras.length - index;
+
+            return (
+              <TouchableOpacity
+                style={[styles.cardScan, isAtivo && styles.cardScanAtivo]}
+                onPress={() => {
+                  setItemAtivoManual(item);
+                  if (onSelecionarLeitura) onSelecionarLeitura(item);
+                  centralizarEmLeitura(item);
+                }}
+                activeOpacity={0.85}
+              >
+                <View style={styles.cardScanTop}>
+                  <View
+                    style={[
+                      styles.badgeOrdemCard,
+                      isLatest && styles.badgeOrdemCardLatest,
+                    ]}
+                  >
+                    <Ionicons
+                      name={isLatest ? "star" : "location"}
+                      size={12}
+                      color={isLatest ? COLORS.blue : COLORS.white}
+                    />
+                    <Text
+                      style={[
+                        styles.badgeOrdemCardTexto,
+                        isLatest && styles.badgeOrdemCardTextoLatest,
+                      ]}
+                    >
+                      {isLatest ? "#1 Mais Recente" : `#${numOrdem}`}
+                    </Text>
+                  </View>
+
+                  <Text style={styles.tempoRelativoCard}>
+                    {formatarHora(item.criado_em)}
+                  </Text>
+                </View>
+
+                <View style={styles.cardScanMeio}>
+                  <Text style={styles.petNomeCard}>
+                    {item.pet?.nome || "Cachorro PetSafe"}
+                  </Text>
+                  <Text style={styles.enderecoCard} numberOfLines={2}>
+                    {item.endereco_aproximado ||
+                      `${item.bairro || ""} ${item.cidade || ""}`.trim() ||
+                      `Lat: ${item.latitude.toFixed(4)}, Long: ${item.longitude.toFixed(4)}`}
+                  </Text>
+                  <Text style={styles.dataExataCard}>
+                    🕒 {new Date(item.criado_em).toLocaleString("pt-BR")}
+                  </Text>
+                </View>
+
+                {item.lido_por_dispositivo && (
+                  <View style={styles.dispositivoWrapper}>
+                    <Ionicons
+                      name="phone-portrait-outline"
+                      size={12}
+                      color={COLORS.roxoclaro}
+                    />
+                    <Text style={styles.dispositivoTexto} numberOfLines={1}>
+                      {item.lido_por_dispositivo}
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.botoesAcao}>
+                  <TouchableOpacity
+                    style={styles.botaoRota}
+                    onPress={() => abrirNoMapaExterno(item)}
+                  >
+                    <Ionicons name="navigate" size={14} color={COLORS.blue} />
+                    <Text style={styles.textoBotaoRota}>Traçar Rota</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.botaoCompartilhar}
+                    onPress={() => compartilharLeitura(item)}
+                  >
+                    <Ionicons
+                      name="share-social-outline"
+                      size={14}
+                      color={COLORS.blue}
+                    />
+                  </TouchableOpacity>
+                </View>
+              </TouchableOpacity>
+            );
+          }}
+        />
           )}
-        </View>
+      </View>
       )}
     </View>
   );
@@ -303,8 +493,8 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   map: {
+    flex: 1,
     width: "100%",
-    height: "100%",
   },
 
   // Marcador customizado
@@ -312,8 +502,39 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  markerContainerAtivo: {
-    transform: [{ scale: 1.15 }],
+  badgePin: {
+    backgroundColor: COLORS.blue,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    marginBottom: -4,
+    zIndex: 2,
+    borderWidth: 1,
+    borderColor: COLORS.white,
+  },
+  badgePinLatest: {
+    backgroundColor: COLORS.yellow,
+    borderColor: COLORS.blue,
+  },
+  badgePinAtivo: {
+    transform: [{ scale: 1.1 }],
+  },
+  textoBadgePin: {
+    fontSize: 9,
+    fontFamily: "Poppins_700Bold",
+    color: COLORS.white,
+  },
+  textoBadgePinLatest: {
+    color: COLORS.blue,
+  },
+  radarPulseNative: {
+    position: "absolute",
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "rgba(255, 177, 1, 0.45)",
+    top: 10,
+    zIndex: -1,
   },
   markerIconWrapper: {
     backgroundColor: COLORS.blue,
@@ -322,7 +543,7 @@ const styles = StyleSheet.create({
     borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 2,
+    borderWidth: 2.5,
     borderColor: COLORS.white,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -330,12 +551,17 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
-  markerIconWrapperAtivo: {
+  markerIconWrapperLatest: {
     backgroundColor: COLORS.yellow,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     borderColor: COLORS.blue,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+  },
+  markerIconWrapperAtivo: {
+    borderColor: COLORS.yellow,
+    transform: [{ scale: 1.2 }],
+    shadowOpacity: 0.45,
   },
   markerPonta: {
     width: 0,
@@ -350,6 +576,10 @@ const styles = StyleSheet.create({
     borderTopColor: COLORS.blue,
     marginTop: -1,
   },
+  markerPontaLatest: {
+    borderTopColor: COLORS.yellow,
+    borderTopWidth: 9,
+  },
   markerPontaAtiva: {
     borderTopColor: COLORS.yellow,
     borderTopWidth: 10,
@@ -358,8 +588,8 @@ const styles = StyleSheet.create({
   // Controles flutuantes
   controlesFlutuantes: {
     position: "absolute",
-    right: 16,
-    top: 16,
+    right: 14,
+    top: 14,
     gap: 10,
   },
   botaoFlutuante: {
@@ -371,94 +601,174 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.18,
     shadowRadius: 4,
     elevation: 4,
   },
 
-  // Card inferior de informações
-  cardInfo: {
-    position: "absolute",
-    bottom: 20,
-    left: 16,
-    right: 16,
+  // Carousel Inferior
+  carouselContainer: {
     backgroundColor: COLORS.white,
-    borderRadius: 16,
-    padding: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#EAEAEA",
+    paddingTop: 10,
+    paddingBottom: 16,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: "#F0F0F5",
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 8,
   },
-  cardHeader: {
+  carouselHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    paddingHorizontal: 16,
+    marginBottom: 8,
   },
-  tagIcone: {
-    backgroundColor: COLORS.blue,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+  carouselHeaderLeft: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
+    gap: 6,
   },
-  cardTituloContainer: {
-    flex: 1,
-  },
-  cardPetNome: {
-    fontSize: 16,
+  carouselTitulo: {
+    fontSize: 14,
     fontFamily: "Poppins_600SemiBold",
     color: COLORS.blue,
   },
-  cardData: {
+  carouselContador: {
     fontSize: 12,
     fontFamily: "Poppins_400Regular",
     color: COLORS.roxoclaro,
   },
-  botaoRota: {
+  botaoToggleRecolhido: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#F0F2FF",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    backgroundColor: "#F0F2FA",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
-  textoBotaoRota: {
-    fontSize: 12,
+  textoToggleRecolhido: {
+    fontSize: 11,
     fontFamily: "Poppins_600SemiBold",
     color: COLORS.blue,
   },
-  cardDivisor: {
-    height: 1,
-    backgroundColor: "#F0F0F5",
-    marginVertical: 10,
+  carouselLista: {
+    paddingHorizontal: 14,
+    gap: 10,
   },
-  cardDetalhes: {
+  cardScan: {
+    width: 250,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    gap: 8,
+  },
+  cardScanAtivo: {
+    backgroundColor: "#FFFFFF",
+    borderColor: COLORS.yellow,
+    shadowColor: COLORS.yellow,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  cardScanTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  badgeOrdemCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: COLORS.blue,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  badgeOrdemCardLatest: {
+    backgroundColor: COLORS.yellow,
+  },
+  badgeOrdemCardTexto: {
+    fontSize: 10,
+    fontFamily: "Poppins_700Bold",
+    color: COLORS.white,
+  },
+  badgeOrdemCardTextoLatest: {
+    color: COLORS.blue,
+  },
+  tempoRelativoCard: {
+    fontSize: 11,
+    fontFamily: "Poppins_600SemiBold",
+    color: COLORS.yellow,
+  },
+  cardScanMeio: {
+    gap: 2,
+  },
+  petNomeCard: {
+    fontSize: 14,
+    fontFamily: "Poppins_700Bold",
+    color: COLORS.blue,
+  },
+  enderecoCard: {
+    fontSize: 12,
+    fontFamily: "Poppins_400Regular",
+    color: "#374151",
+    lineHeight: 16,
+  },
+  dataExataCard: {
+    fontSize: 10,
+    fontFamily: "Poppins_400Regular",
+    color: COLORS.roxoclaro,
+    marginTop: 2,
+  },
+  dispositivoWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  dispositivoTexto: {
+    fontSize: 10,
+    fontFamily: "Poppins_400Regular",
+    color: COLORS.roxoclaro,
+    flex: 1,
+  },
+  botoesAcao: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+    marginTop: 2,
   },
-  cardEndereco: {
+  botaoRota: {
     flex: 1,
-    fontSize: 13,
-    fontFamily: "Poppins_400Regular",
-    color: "#2C2C2E",
-  },
-  cardSubdetalhe: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
-    marginTop: 6,
+    backgroundColor: "#EEF2FF",
+    paddingVertical: 6,
+    borderRadius: 8,
   },
-  cardDispositivo: {
+  textoBotaoRota: {
     fontSize: 11,
-    fontFamily: "Poppins_400Regular",
-    color: COLORS.placeholder,
+    fontFamily: "Poppins_600SemiBold",
+    color: COLORS.blue,
+  },
+  botaoCompartilhar: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: "#EEF2FF",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
