@@ -5,8 +5,8 @@
   <h3>Universidade Federal do Tocantins (UFT)</h3>
   <p>
     <b>Curso:</b> Bacharelado em Ciência da Computação<br/>
-    <b>Professores:</b> Jackson Souza e Edeilson Milhomem da Silva<br/>
-    <b>Disciplina:</b> Desenvolvimento Web/Mobile e Projeto de Sistemas
+    <b>Professores:</b> Jackson Souza<br/>
+    <b>Disciplina:</b> Desenvolvimento Web/Mobile
   </p>
 </div>
 
