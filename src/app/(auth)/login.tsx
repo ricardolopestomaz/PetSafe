@@ -188,6 +188,21 @@ export default function Login() {
         onPress={() => router.push("/(auth)/cadastro")}
         disabled={ocupado}
       />
+
+      <Pressable
+        style={({ pressed }) => [s.publicTagBanner, pressed && s.publicTagBannerPressed]}
+        onPress={() => router.push("/pet/lista" as any)}
+        disabled={ocupado}
+        accessibilityRole="button"
+        accessibilityLabel="Acessar lista pública de Pets Perdidos sem login"
+      >
+        <Ionicons name="qr-code-outline" size={18} color={C.brand} />
+        <Text style={s.publicTagText}>
+          Encontrou um pet?{" "}
+          <Text style={s.publicTagHighlight}>Ver Pets Perdidos / Medalhas</Text>
+        </Text>
+        <Ionicons name="chevron-forward" size={16} color={C.textSubtle} />
+      </Pressable>
     </AuthLayout>
   );
 }
@@ -195,4 +210,31 @@ export default function Login() {
 const s = StyleSheet.create({
   linkMuted: { fontSize: 12, fontFamily: DS.font.semibold, color: C.textMuted },
   submit: { marginTop: 8 },
+  publicTagBanner: {
+    marginTop: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderRadius: DS.radius.md,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  publicTagBannerPressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.98 }],
+  },
+  publicTagText: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: DS.font.regular,
+    color: C.textMuted,
+  },
+  publicTagHighlight: {
+    fontFamily: DS.font.bold,
+    color: C.brand,
+  },
 });

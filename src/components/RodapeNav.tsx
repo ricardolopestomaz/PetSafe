@@ -37,7 +37,7 @@ export default function RodapeNav({
     } else if (aba === "scanner") {
       router.push("/mapa" as any);
     } else if (aba === "pets") {
-      router.push("/(tabs)" as any);
+      router.push("/pet/lista" as any);
     } else if (aba === "ai") {
       router.push("/(tabs)" as any);
     } else if (aba === "chat") {
