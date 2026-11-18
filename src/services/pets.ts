@@ -1,8 +1,12 @@
-import { supabase } from '@/lib/supabase'
-import { CriarPetPayload, PetDTO } from '@/@types/pet'
+import { CriarPetPayload, PetDTO } from "@/@types/pet";
+import { supabase } from "@/lib/supabaseClient";
 
 export type Pet = PetDTO;
 export type { CriarPetPayload, PetDTO };
+
+// Deixe false para ver só os dados reais do banco.
+// Mude para true apenas em demonstrações sem login.
+const USAR_MOCK = false;
 
 export const MOCK_PETS: Pet[] = [
   {
@@ -29,69 +33,75 @@ export const MOCK_PETS: Pet[] = [
 ];
 
 // CREATE
-export async function criarPet(pet: Pet) {
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Usuário não autenticado')
+export async function criarPet(pet: CriarPetPayload) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Usuário não autenticado");
 
   const { data, error } = await supabase
-    .from('pets')
+    .from("pets")
     .insert({ ...pet, tutor_id: user.id })
     .select()
-    .single()
+    .single();
 
-  if (error) throw error
-  return data
+  if (error) throw error;
+  return data;
 }
 
 // READ - lista os pets do tutor logado
-export async function listarMeusPets() {
-  try {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      const { data, error } = await supabase
-        .from('pets')
-        .select('*')
-        .eq('tutor_id', user.id)
+export async function listarMeusPets(): Promise<Pet[]> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-      if (!error && data && data.length > 0) return data
-    }
-    return MOCK_PETS
-  } catch {
-    return MOCK_PETS
+  if (!user) return USAR_MOCK ? MOCK_PETS : [];
+
+  const { data, error } = await supabase
+    .from("pets")
+    .select("*")
+    .eq("tutor_id", user.id)
+    .order("criado_em", { ascending: false });
+
+  if (error) {
+    console.warn("[listarMeusPets]", error.message);
+    return USAR_MOCK ? MOCK_PETS : [];
   }
+
+  return data ?? [];
 }
 
 // READ - um pet específico
 export async function getPet(id: string) {
-  try {
-    const { data, error } = await supabase
-      .from('pets')
-      .select('*')
-      .eq('id', id)
-      .single()
+  const { data, error } = await supabase
+    .from("pets")
+    .select("*")
+    .eq("id", id)
+    .single();
 
-    if (!error && data) return data
-    return MOCK_PETS.find((p) => p.id === id) || MOCK_PETS[0]
-  } catch {
-    return MOCK_PETS.find((p) => p.id === id) || MOCK_PETS[0]
+  if (!error && data) return data;
+
+  if (USAR_MOCK) {
+    return MOCK_PETS.find((p) => p.id === id) || MOCK_PETS[0];
   }
+  throw error ?? new Error("Pet não encontrado");
 }
 
 // UPDATE
 export async function atualizarPet(id: string, campos: Partial<Pet>) {
   const { data, error } = await supabase
-    .from('pets')
+    .from("pets")
     .update(campos)
-    .eq('id', id)
+    .eq("id", id)
     .select()
-    .single()
+    .single();
 
-  if (error) throw error
-  return data
+  if (error) throw error;
+  return data;
 }
 
 // DELETE
 export async function deletarPet(id: string) {
-  const { error } = await supabase.from('pets').delete().eq('id', id)
-  if (error) throw error
+  const { error } = await supabase.from("pets").delete().eq("id", id);
+  if (error) throw error;
 }

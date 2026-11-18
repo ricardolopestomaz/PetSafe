@@ -1,7 +1,7 @@
-import * as Linking from 'expo-linking';
-import * as WebBrowser from 'expo-web-browser';
-import { supabase } from '@/lib/supabaseClient';
-import { PerfilUsuarioDTO } from '@/@types/auth';
+import { PerfilUsuarioDTO } from "@/@types/auth";
+import { supabase } from "@/lib/supabaseClient";
+import * as Linking from "expo-linking";
+import * as WebBrowser from "expo-web-browser";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -25,10 +25,10 @@ export async function login(email: string, senha: string) {
 
 export async function loginComGoogle() {
   try {
-    const redirectUrl = Linking.createURL('auth-callback');
+    const redirectUrl = Linking.createURL("auth-callback");
 
     const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+      provider: "google",
       options: {
         redirectTo: redirectUrl,
         skipBrowserRedirect: true,
@@ -36,10 +36,10 @@ export async function loginComGoogle() {
     });
 
     if (error || !data?.url) {
-      const msg = error?.message || '';
+      const msg = error?.message || "";
       if (
-        msg.toLowerCase().includes('provider is not enabled') ||
-        msg.toLowerCase().includes('unsupported provider')
+        msg.toLowerCase().includes("provider is not enabled") ||
+        msg.toLowerCase().includes("unsupported provider")
       ) {
         return {
           sucesso: false,
@@ -49,26 +49,32 @@ export async function loginComGoogle() {
       }
       return {
         sucesso: false,
-        mensagem: error?.message || 'Não foi possível iniciar o login com o Google.',
+        mensagem:
+          error?.message || "Não foi possível iniciar o login com o Google.",
       };
     }
 
-    const resultado = await WebBrowser.openAuthSessionAsync(data.url, redirectUrl);
+    const resultado = await WebBrowser.openAuthSessionAsync(
+      data.url,
+      redirectUrl,
+    );
 
-    if (resultado.type === 'success' && resultado.url) {
+    if (resultado.type === "success" && resultado.url) {
       const urlCompleta = resultado.url;
-      const hashPart = urlCompleta.split('#')[1];
-      const searchPart = urlCompleta.split('?')[1];
-      const params = new URLSearchParams(hashPart || searchPart || '');
+      const hashPart = urlCompleta.split("#")[1];
+      const searchPart = urlCompleta.split("?")[1];
+      const params = new URLSearchParams(hashPart || searchPart || "");
 
       // 1. Verifica se houve erro retornado pelo Supabase ou Google
-      const errorDesc = params.get('error_description') || params.get('error');
+      const errorDesc = params.get("error_description") || params.get("error");
       if (errorDesc) {
-        const descDecodificada = decodeURIComponent(errorDesc.replace(/\+/g, ' '));
+        const descDecodificada = decodeURIComponent(
+          errorDesc.replace(/\+/g, " "),
+        );
         if (
-          descDecodificada.toLowerCase().includes('redirect_uri') ||
-          descDecodificada.toLowerCase().includes('not_whitelisted') ||
-          descDecodificada.toLowerCase().includes('redirect url')
+          descDecodificada.toLowerCase().includes("redirect_uri") ||
+          descDecodificada.toLowerCase().includes("not_whitelisted") ||
+          descDecodificada.toLowerCase().includes("redirect url")
         ) {
           return {
             sucesso: false,
@@ -82,7 +88,7 @@ export async function loginComGoogle() {
       }
 
       // 2. Fluxo PKCE (padrão Supabase v2): troca o código de autorização por sessão
-      const code = params.get('code');
+      const code = params.get("code");
       if (code) {
         const { data: sessionData, error: sessionError } =
           await supabase.auth.exchangeCodeForSession(code);
@@ -99,8 +105,8 @@ export async function loginComGoogle() {
       }
 
       // 3. Fluxo Implícito (caso venham tokens diretamente)
-      const accessToken = params.get('access_token');
-      const refreshToken = params.get('refresh_token');
+      const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
 
       if (accessToken && refreshToken) {
         const { data: sessionData, error: sessionError } =
@@ -121,15 +127,18 @@ export async function loginComGoogle() {
       }
     }
 
-    if (resultado.type === 'cancel' || resultado.type === 'dismiss') {
-      return { sucesso: false, mensagem: 'Login com Google cancelado.' };
+    if (resultado.type === "cancel" || resultado.type === "dismiss") {
+      return { sucesso: false, mensagem: "Login com Google cancelado." };
     }
 
-    return { sucesso: false, mensagem: 'Não foi possível concluir o login com Google.' };
+    return {
+      sucesso: false,
+      mensagem: "Não foi possível concluir o login com Google.",
+    };
   } catch (err: any) {
     return {
       sucesso: false,
-      mensagem: err?.message || 'Erro inesperado no login com Google.',
+      mensagem: err?.message || "Erro inesperado no login com Google.",
     };
   }
 }
@@ -176,24 +185,33 @@ export async function sincronizarUsuario(user: any, nomeFallback?: string) {
       user.user_metadata?.full_name ||
       user.user_metadata?.name ||
       nomeFallback ||
-      'Usuário';
+      "Usuário";
 
     const fotoPerfil =
-      user.user_metadata?.avatar_url ||
-      user.user_metadata?.picture ||
-      null;
+      user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
-    await supabase.from('usuarios').upsert(
-      {
-        id: user.id,
-        nome,
-        email: user.email,
-        foto_perfil_url: fotoPerfil,
-      },
-      { onConflict: 'id' }
-    );
-  } catch {
-    // Ignora erro de inserção se houver bloqueio de RLS não crítico
+    // Só envia a foto quando existe, para não apagar a foto já salva
+    const registro: Record<string, any> = {
+      id: user.id,
+      nome,
+      email: user.email,
+    };
+    if (fotoPerfil) {
+      registro.foto_perfil_url = fotoPerfil;
+    }
+
+    const { error } = await supabase
+      .from("usuarios")
+      .upsert(registro, { onConflict: "id" });
+
+    if (error) {
+      console.warn(
+        "[sincronizarUsuario] Falha ao gravar em usuarios:",
+        error.message,
+      );
+    }
+  } catch (err) {
+    console.warn("[sincronizarUsuario] Erro inesperado:", err);
   }
 }
 
@@ -216,9 +234,9 @@ export async function obterUsuarioAtual(): Promise<PerfilUsuarioDTO | null> {
 
   try {
     const { data: perfil } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('id', user.id)
+      .from("usuarios")
+      .select("*")
+      .eq("id", user.id)
       .maybeSingle();
 
     if (perfil) {
@@ -232,8 +250,8 @@ export async function obterUsuarioAtual(): Promise<PerfilUsuarioDTO | null> {
 
   return {
     id: user.id,
-    email: user.email || '',
-    nome: nome || 'Usuário',
+    email: user.email || "",
+    nome: nome || "Usuário",
     fotoPerfilUrl,
     telefone,
   };
