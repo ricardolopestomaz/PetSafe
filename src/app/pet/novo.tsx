@@ -309,7 +309,6 @@ export default function NovoPet() {
             <View style={{ marginTop: 8 }}>
               <PrimaryButton
                 label="Salvar pet"
-                iconRight="arrow-forward"
                 onPress={salvar}
                 loading={carregando}
                 disabled={carregando}

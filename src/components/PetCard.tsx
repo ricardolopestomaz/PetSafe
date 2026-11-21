@@ -51,53 +51,56 @@ export default function PetCard({ pet, onPress }: Props) {
       accessibilityRole="button"
       accessibilityLabel={`Ver perfil de ${pet.nome}`}
     >
-      <View style={s.conteudo}>
-        {/* PARTE DE CIMA: foto | informações */}
-        <View style={s.linha}>
-          {/* FOTO (ou ícone da espécie, se não houver foto) */}
-          <View style={s.fotoWrapper}>
-            {mostrarFoto ? (
-              <Image
-                source={{ uri: pet.foto_url }}
-                style={s.foto}
-                resizeMode="cover"
-                onError={() => setErroImagem(true)}
-              />
-            ) : (
-              <MaterialCommunityIcons
-                name={iconeDaEspecie(pet.especie)}
-                size={24}
-                color={C.primaryText}
-              />
-            )}
-          </View>
+      {/* Linha única: foto | informações | botão */}
+      <View style={s.linha}>
+        {/* FOTO (ou ícone da espécie, se não houver foto) */}
+        <View
+          style={[
+            s.fotoWrapper,
+            mostrarFoto ? s.fotoWrapperComFoto : s.fotoWrapperSemFoto,
+          ]}
+        >
+          {mostrarFoto ? (
+            <Image
+              source={{ uri: pet.foto_url }}
+              style={s.foto}
+              resizeMode="cover"
+              onError={() => setErroImagem(true)}
+            />
+          ) : (
+            <MaterialCommunityIcons
+              name={iconeDaEspecie(pet.especie)}
+              size={24}
+              color={C.primaryText}
+            />
+          )}
+        </View>
 
-          {/* INFORMAÇÕES AO LADO DA FOTO */}
-          <View style={s.info}>
-            <Text style={s.nome} numberOfLines={1}>
-              {pet.nome}
-            </Text>
-            <Text style={s.raca} numberOfLines={1}>
-              {pet.raca || "Sem raça definida"}
-            </Text>
+        {/* INFORMAÇÕES AO LADO DA FOTO */}
+        <View style={s.info}>
+          <Text style={s.nome} numberOfLines={1}>
+            {pet.nome}
+          </Text>
+          <Text style={s.raca} numberOfLines={1}>
+            {pet.raca || "Sem raça definida"}
+          </Text>
 
-            <View style={s.tags}>
-              {pet.especie ? (
-                <View style={s.tag}>
-                  <Text style={s.tagTexto}>{pet.especie}</Text>
-                </View>
-              ) : null}
-              {idade ? (
-                <View style={s.tag}>
-                  <Ionicons name="gift-outline" size={10} color={C.textMuted} />
-                  <Text style={s.tagTexto}>{idade}</Text>
-                </View>
-              ) : null}
-            </View>
+          <View style={s.tags}>
+            {pet.especie ? (
+              <View style={s.tag}>
+                <Text style={s.tagTexto}>{pet.especie}</Text>
+              </View>
+            ) : null}
+            {idade ? (
+              <View style={s.tag}>
+                <Ionicons name="gift-outline" size={10} color={C.textMuted} />
+                <Text style={s.tagTexto}>{idade}</Text>
+              </View>
+            ) : null}
           </View>
         </View>
 
-        {/* EMBAIXO DE TUDO: "botão" Ver perfil (visual; o clique é do card inteiro) */}
+        {/* "BOTÃO" VER PERFIL NA LATERAL (visual; o clique é do card inteiro) */}
         <View style={s.botao}>
           <Text style={s.botaoTexto}>Ver perfil</Text>
         </View>
@@ -119,14 +122,11 @@ const s = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 1,
   },
-  conteudo: {
-    padding: 10,
-    gap: 8,
-  },
   linha: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+    padding: 10,
   },
 
   fotoWrapper: {
@@ -134,11 +134,16 @@ const s = StyleSheet.create({
     height: 52,
     borderRadius: 26,
     overflow: "hidden",
-    backgroundColor: C.primary,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 1.5,
+  },
+  fotoWrapperComFoto: {
+    backgroundColor: C.surface, // fundo neutro: sem anel roxo
+    borderWidth: 1,
     borderColor: C.border,
+  },
+  fotoWrapperSemFoto: {
+    backgroundColor: C.primary, // roxo só para o ícone da espécie
   },
   foto: { width: "100%", height: "100%" },
 
@@ -163,9 +168,9 @@ const s = StyleSheet.create({
   botao: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    paddingVertical: 6,
+    gap: 4,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
     borderRadius: 14,
     backgroundColor: C.primary,
   },
