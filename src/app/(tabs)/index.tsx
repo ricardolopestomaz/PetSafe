@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -6,29 +8,22 @@ import {
   Easing,
   FlatList,
   Image,
-  Pressable,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import {
-  FontAwesome5,
-  Ionicons,
-  MaterialCommunityIcons,
-  Octicons,
-} from "@expo/vector-icons";
 
-import { COLORS, DS } from "@/global/themes";
-import { supabase } from "@/lib/supabaseClient";
-import { listarMeusPets, Pet } from "@/services/pets";
-import { Leitura, listarTodasLeituras } from "@/services/leituras";
-import { styles } from "@/styles/homeStyles";
 import { SquishyPressable, StaggerFadeItem, TiltCard } from "@/components/ds";
+import PetCard from "@/components/PetCard";
 import RodapeNav, { RodapeAba } from "@/components/RodapeNav";
 import * as AuthController from "@/controller/authController";
+import { DS } from "@/global/themes";
+import { supabase } from "@/lib/supabaseClient";
+import { Leitura, listarTodasLeituras } from "@/services/leituras";
+import { listarMeusPets, Pet } from "@/services/pets";
+import { styles } from "@/styles/homeStyles";
 
 // Importação dos banners em PNG
 import Banner1 from "@/assets/banners/banner1.png";
@@ -130,11 +125,8 @@ export default function Home() {
     let ativo = true;
 
     async function inicializar() {
-      await Promise.all([
-        carregarUsuario(),
-        carregarPets(),
-        carregarLeituras(),
-      ]);
+      // Os pets são carregados pelo useFocusEffect abaixo
+      await Promise.all([carregarUsuario(), carregarLeituras()]);
     }
 
     if (ativo) {
@@ -145,6 +137,14 @@ export default function Home() {
       ativo = false;
     };
   }, []);
+
+  // Recarrega os pets sempre que a tela volta a ficar em foco
+  // (ex.: depois de cadastrar um pet em /pet/novo)
+  useFocusEffect(
+    useCallback(() => {
+      carregarPets();
+    }, []),
+  );
 
   // Animação de entrada em cascata (Staggered Fade-in)
   const animHeader = useRef(new Animated.Value(0)).current;
@@ -195,14 +195,16 @@ export default function Home() {
     return () => clearInterval(intervalo);
   }, [opacidade]);
 
-  const primeiroNome = nomeUsuario ? nomeUsuario.trim().split(" ")[0] : "Usuário";
+  const primeiroNome = nomeUsuario
+    ? nomeUsuario.trim().split(" ")[0]
+    : "Usuário";
 
   const dadosLista =
     filtroAtivo === "pets"
       ? (pets as any[])
       : filtroAtivo === "historico"
-      ? (leituras as any[])
-      : [];
+        ? (leituras as any[])
+        : [];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -233,13 +235,13 @@ export default function Home() {
                 >
                   {({ iconStyle }) => (
                     <View
-                      style={[
-                        styles.botaoSair,
-                        saindo && { opacity: 0.5 },
-                      ]}
+                      style={[styles.botaoSair, saindo && { opacity: 0.5 }]}
                     >
                       {saindo ? (
-                        <ActivityIndicator size="small" color={DS.colors.text} />
+                        <ActivityIndicator
+                          size="small"
+                          color={DS.colors.text}
+                        />
                       ) : (
                         <Animated.View style={iconStyle}>
                           <Ionicons
@@ -373,13 +375,17 @@ export default function Home() {
                   <Text style={styles.textoSecao}>Meus Pets</Text>
                   <SquishyPressable
                     style={styles.adicionar}
-                    onPress={() => {
-                      // Funcionalidade ainda não incrementada/implementada
-                    }}
+                    onPress={() => router.push("/pet/novo" as any)}
                     iconAnimType="rotate"
                   >
                     {({ iconStyle }) => (
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
                         <Animated.View style={iconStyle}>
                           <Ionicons
                             name="add"
@@ -403,8 +409,18 @@ export default function Home() {
                       style={styles.adicionar}
                       onPress={() => router.push("/mapa" as any)}
                     >
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                        <Ionicons name="map-outline" size={14} color={DS.colors.text} />
+                      <View
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "center",
+                          gap: 4,
+                        }}
+                      >
+                        <Ionicons
+                          name="map-outline"
+                          size={14}
+                          color={DS.colors.text}
+                        />
                         <Text style={styles.textoAdicionar}>Ver no Mapa</Text>
                       </View>
                     </SquishyPressable>
@@ -461,7 +477,11 @@ export default function Home() {
                         </Text>
                       </View>
                     </View>
-                    <Ionicons name="chevron-forward" size={20} color="#FFFFFF" />
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#FFFFFF"
+                    />
                   </TiltCard>
                 </>
               )}
@@ -489,36 +509,40 @@ export default function Home() {
               )}
 
               {/* EMPTY STATE DA LISTA DE PETS */}
-              {filtroAtivo === "pets" && !carregandoPets && pets.length === 0 && (
-                <View style={styles.emptyContainer}>
-                  <View style={styles.emptyIconCircle}>
-                    <Ionicons
-                      name="paw-outline"
-                      size={36}
-                      color={DS.colors.textSubtle}
-                    />
+              {filtroAtivo === "pets" &&
+                !carregandoPets &&
+                pets.length === 0 && (
+                  <View style={styles.emptyContainer}>
+                    <View style={styles.emptyIconCircle}>
+                      <Ionicons
+                        name="paw-outline"
+                        size={36}
+                        color={DS.colors.textSubtle}
+                      />
+                    </View>
+                    <Text style={styles.emptyText}>
+                      Nenhum pet cadastrado ainda.
+                    </Text>
                   </View>
-                  <Text style={styles.emptyText}>
-                    Nenhum pet cadastrado ainda.
-                  </Text>
-                </View>
-              )}
+                )}
 
               {/* EMPTY STATE DE HISTÓRICO */}
-              {filtroAtivo === "historico" && !carregandoLeituras && leituras.length === 0 && (
-                <View style={styles.emptyContainer}>
-                  <View style={styles.emptyIconCircle}>
-                    <Ionicons
-                      name="location-outline"
-                      size={36}
-                      color={DS.colors.textSubtle}
-                    />
+              {filtroAtivo === "historico" &&
+                !carregandoLeituras &&
+                leituras.length === 0 && (
+                  <View style={styles.emptyContainer}>
+                    <View style={styles.emptyIconCircle}>
+                      <Ionicons
+                        name="location-outline"
+                        size={36}
+                        color={DS.colors.textSubtle}
+                      />
+                    </View>
+                    <Text style={styles.emptyText}>
+                      Nenhuma leitura registrada ainda.
+                    </Text>
                   </View>
-                  <Text style={styles.emptyText}>
-                    Nenhuma leitura registrada ainda.
-                  </Text>
-                </View>
-              )}
+                )}
 
               {filtroAtivo === "outro" && (
                 <View style={styles.emptyContainer}>
@@ -532,25 +556,10 @@ export default function Home() {
           if (filtroAtivo === "pets") {
             const pet = item as Pet;
             return (
-              <SquishyPressable
-                style={styles.card}
+              <PetCard
+                pet={pet}
                 onPress={() => router.push(`/pet/${pet.id}` as any)}
-              >
-                <View style={styles.petAvatar}>
-                  <Ionicons name="paw" size={20} color={DS.colors.cardText} />
-                </View>
-                <View style={styles.cardInfo}>
-                  <Text style={styles.petName}>{pet.nome}</Text>
-                  <Text style={styles.petDetails}>
-                    {pet.especie} • {pet.raca || "Sem raça definida"}
-                  </Text>
-                </View>
-                <Ionicons
-                  name="chevron-forward"
-                  size={DS.icon.sm}
-                  color={DS.colors.textSubtle}
-                />
-              </SquishyPressable>
+              />
             );
           }
 
@@ -600,7 +609,10 @@ export default function Home() {
       />
 
       {/* NAVEGAÇÃO INFERIOR UNIFICADA (BOTTOM BAR) */}
-      <RodapeNav abaAtiva={abaAtiva} onSelecionarAba={(aba) => setAbaAtiva(aba)} />
+      <RodapeNav
+        abaAtiva={abaAtiva}
+        onSelecionarAba={(aba) => setAbaAtiva(aba)}
+      />
     </SafeAreaView>
   );
 }

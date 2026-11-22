@@ -20,6 +20,7 @@ export interface CriarPetPayload {
   raca?: string;
   data_nascimento?: string;
   foto_url?: string;
+  video_url?: string;
   observacoes?: string;
 }
 
@@ -29,6 +30,7 @@ export interface AtualizarPetPayload {
   raca?: string;
   data_nascimento?: string;
   foto_url?: string;
+  video_url?: string;
   observacoes?: string;
 }
 

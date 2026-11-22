@@ -3,6 +3,12 @@ import { COLORS, DS } from "../global/themes";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const PADDING_HORIZONTAL = 24;
+const LARGURA_BANNER = Math.min(SCREEN_WIDTH, 720) - PADDING_HORIZONTAL * 2;
+
+const limitar = (valor: number, min: number, max: number) =>
+  Math.min(Math.max(valor, min), max);
+const TITULO_BANNER = limitar(Math.round(LARGURA_BANNER * 0.045), 14, 26);
+const SUBTITULO_BANNER = limitar(Math.round(LARGURA_BANNER * 0.032), 11, 19);
 const C = DS.colors;
 
 export const styles = StyleSheet.create({
@@ -86,18 +92,18 @@ export const styles = StyleSheet.create({
   },
 
   tituloBanner: {
-    fontSize: 14,
+    fontSize: TITULO_BANNER,
     fontFamily: "Poppins_700Bold",
     color: COLORS.white,
-    lineHeight: Math.round(SCREEN_WIDTH * 0.052),
+    lineHeight: Math.round(TITULO_BANNER * 1.3),
   },
 
   subtituloBanner: {
     marginTop: "3%",
-    fontSize: Math.round(SCREEN_WIDTH * 0.03),
+    fontSize: SUBTITULO_BANNER,
     fontFamily: "Poppins_400Regular",
     color: "rgba(255, 255, 255, 0.85)",
-    lineHeight: Math.round(SCREEN_WIDTH * 0.04),
+    lineHeight: Math.round(SUBTITULO_BANNER * 1.4),
   },
 
   /* Indicadores */
