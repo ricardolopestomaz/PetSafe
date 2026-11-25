@@ -1,3 +1,5 @@
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -8,25 +10,23 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router, useLocalSearchParams } from "expo-router";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { COLORS } from "@/global/themes";
+import { PetIconBySpecies } from "@/components/PetIcons";
 import PetMap from "@/components/PetMap";
 import RodapeNav from "@/components/RodapeNav";
-import { PetIconBySpecies } from "@/components/PetIcons";
-import { listarMeusPets, Pet } from "@/services/pets";
+import { COLORS } from "@/global/themes";
 import {
   Leitura,
   listarLeiturasPorPet,
   listarTodasLeituras,
   simularNovoEscaneamento,
 } from "@/services/leituras";
+import { listarMeusPets, Pet } from "@/services/pets";
 
 export default function MapaScreen() {
   const params = useLocalSearchParams<{ petId?: string }>();
   const [petSelecionadoId, setPetSelecionadoId] = useState<string | null>(
-    params.petId || null
+    params.petId || null,
   );
 
   const [pets, setPets] = useState<Pet[]>([]);
@@ -36,7 +36,7 @@ export default function MapaScreen() {
   const [mostrarTrajeto, setMostrarTrajeto] = useState(true);
   const [avisoNovoScan, setAvisoNovoScan] = useState<string | null>(null);
   const [leituraSelecionada, setLeituraSelecionada] = useState<Leitura | null>(
-    null
+    null,
   );
 
   // Carrega lista de pets do tutor
@@ -51,7 +51,7 @@ export default function MapaScreen() {
         const primeiroCachorro = listaPets.find(
           (p) =>
             p.especie?.toLowerCase().includes("cachorro") ||
-            p.especie?.toLowerCase().includes("cão")
+            p.especie?.toLowerCase().includes("cão"),
         );
         if (primeiroCachorro?.id) {
           setPetSelecionadoId(primeiroCachorro.id);
@@ -98,7 +98,7 @@ export default function MapaScreen() {
       setLeituraSelecionada(novoScan);
 
       setAvisoNovoScan(
-        `Nova leitura registrada de ${novoScan.pet?.nome || "Pet"}!`
+        `Nova leitura registrada de ${novoScan.pet?.nome || "Pet"}!`,
       );
       setTimeout(() => setAvisoNovoScan(null), 4000);
     } catch (e) {
@@ -277,7 +277,7 @@ export default function MapaScreen() {
             <Text style={styles.petStatusTexto}>
               {ultimaLeitura
                 ? `Último registro: ${formatarDataRegistro(
-                    ultimaLeitura.criado_em
+                    ultimaLeitura.criado_em,
                   )}`
                 : "Sem leituras registradas"}
             </Text>
@@ -323,12 +323,11 @@ export default function MapaScreen() {
             <View style={styles.emptyIconeWrapper}>
               <Ionicons name="location-outline" size={48} color={COLORS.blue} />
             </View>
-            <Text style={styles.emptyTitulo}>
-              Nenhum escaneamento recente
-            </Text>
+            <Text style={styles.emptyTitulo}>Nenhum escaneamento recente</Text>
             <Text style={styles.emptySubtitulo}>
               Quando a medalha inteligente do seu cachorro for aproximada ou o
-              QR Code for lido, a localização aparecerá neste mapa em tempo real.
+              QR Code for lido, a localização aparecerá neste mapa em tempo
+              real.
             </Text>
 
             <TouchableOpacity
@@ -353,7 +352,7 @@ export default function MapaScreen() {
       </View>
 
       {/* RODAPÉ DE NAVEGAÇÃO INFERIOR */}
-      <RodapeNav abaAtiva="scanner" />
+      <RodapeNav abaAtiva="mapa" />
     </SafeAreaView>
   );
 }
