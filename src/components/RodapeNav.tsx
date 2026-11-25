@@ -1,17 +1,19 @@
-import React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { router } from "expo-router";
 import {
   FontAwesome5,
   Ionicons,
-  MaterialCommunityIcons,
-  Octicons,
+  Octicons
 } from "@expo/vector-icons";
+
+import { router } from "expo-router";
+
+import { StyleSheet, TouchableOpacity, View } from "react-native";
+
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { COLORS, DS } from "@/global/themes";
 
-export type RodapeAba = "home" | "ai" | "scanner" | "chat" | "pets";
+// Abas disponíveis no rodapé
+export type RodapeAba = "home" | "scanner" | "mapa" | "chat" | "perfil";
 
 type RodapeNavProps = {
   abaAtiva?: RodapeAba;
@@ -23,8 +25,10 @@ export default function RodapeNav({
   onSelecionarAba,
 }: RodapeNavProps) {
   const insets = useSafeAreaInsets();
+
   const paddingBottomCalculado = Math.max(insets.bottom, 10);
 
+  // Navegação entre as abas
   function navegar(aba: RodapeAba) {
     if (onSelecionarAba) {
       onSelecionarAba(aba);
@@ -32,16 +36,26 @@ export default function RodapeNav({
 
     if (aba === abaAtiva) return;
 
-    if (aba === "home") {
-      router.push("/(tabs)" as any);
-    } else if (aba === "scanner") {
-      router.push("/mapa" as any);
-    } else if (aba === "pets") {
-      router.push("/(tabs)" as any);
-    } else if (aba === "ai") {
-      router.push("/(tabs)" as any);
-    } else if (aba === "chat") {
-      router.push("/(tabs)" as any);
+    switch (aba) {
+      case "home":
+        router.push("/(tabs)" as any);
+        break;
+
+      case "scanner":
+        router.push("/scanner" as any);
+        break;
+
+      case "mapa":
+        router.push("/mapa" as any);
+        break;
+
+      case "chat":
+        router.push("/chat" as any);
+        break;
+
+      case "perfil":
+        router.push("/perfil" as any);
+        break;
     }
   }
 
@@ -55,51 +69,60 @@ export default function RodapeNav({
         },
       ]}
     >
-      {/* 1. HOME */}
+      {/* 1. INÍCIO */}
       <TouchableOpacity
         style={styles.itemRodape}
         onPress={() => navegar("home")}
         accessibilityLabel="Início"
         accessibilityRole="tab"
-        accessibilityState={{ selected: abaAtiva === "home" }}
+        accessibilityState={{
+          selected: abaAtiva === "home",
+        }}
       >
         <Octicons
           name="home"
           size={20}
           color={abaAtiva === "home" ? COLORS.yellow : COLORS.cinzaclaro}
         />
+
         {abaAtiva === "home" && <View style={styles.tracoAtivo} />}
       </TouchableOpacity>
 
-      {/* 2. ASSISTENTE IA */}
+      {/* 2. MAPA DOS PETS */}
       <TouchableOpacity
         style={styles.itemRodape}
-        onPress={() => navegar("ai")}
-        accessibilityLabel="Assistente IA"
+        onPress={() => navegar("mapa")}
+        accessibilityLabel="Mapa de localização dos pets"
         accessibilityRole="tab"
-        accessibilityState={{ selected: abaAtiva === "ai" }}
+        accessibilityState={{
+          selected: abaAtiva === "mapa",
+        }}
       >
-        <MaterialCommunityIcons
-          name="robot"
+        <FontAwesome5
+          name="map"
           size={20}
-          color={abaAtiva === "ai" ? COLORS.yellow : COLORS.cinzaclaro}
+          color={abaAtiva === "mapa" ? COLORS.yellow : COLORS.cinzaclaro}
         />
-        {abaAtiva === "ai" && <View style={styles.tracoAtivo} />}
+
+        {abaAtiva === "mapa" && <View style={styles.tracoAtivo} />}
       </TouchableOpacity>
 
-      {/* 3. MAPA / SCANNER (DESTAQUE) */}
+      {/* 3. SCANNER QR CODE */}
       <TouchableOpacity
         style={styles.itemRodape}
         onPress={() => navegar("scanner")}
-        accessibilityLabel="Mapa de Leituras"
+        accessibilityLabel="Scanner de QR Code"
         accessibilityRole="tab"
-        accessibilityState={{ selected: abaAtiva === "scanner" }}
+        accessibilityState={{
+          selected: abaAtiva === "scanner",
+        }}
       >
         <Ionicons
-          name={abaAtiva === "scanner" ? "map" : "map-outline"}
+          name={abaAtiva === "scanner" ? "qr-code" : "qr-code-outline"}
           size={20}
           color={abaAtiva === "scanner" ? COLORS.yellow : COLORS.cinzaclaro}
         />
+
         {abaAtiva === "scanner" && <View style={styles.tracoAtivo} />}
       </TouchableOpacity>
 
@@ -109,35 +132,42 @@ export default function RodapeNav({
         onPress={() => navegar("chat")}
         accessibilityLabel="Mensagens"
         accessibilityRole="tab"
-        accessibilityState={{ selected: abaAtiva === "chat" }}
+        accessibilityState={{
+          selected: abaAtiva === "chat",
+        }}
       >
         <Ionicons
-          name="chatbubble-outline"
+          name="chatbubbles-outline"
           size={20}
           color={abaAtiva === "chat" ? COLORS.yellow : COLORS.cinzaclaro}
         />
+
         {abaAtiva === "chat" && <View style={styles.tracoAtivo} />}
       </TouchableOpacity>
 
-      {/* 5. MEUS PETS */}
+      {/* 5. MEU PERFIL */}
       <TouchableOpacity
         style={styles.itemRodape}
-        onPress={() => navegar("pets")}
-        accessibilityLabel="Pets"
+        onPress={() => navegar("perfil")}
+        accessibilityLabel="Meu perfil"
         accessibilityRole="tab"
-        accessibilityState={{ selected: abaAtiva === "pets" }}
+        accessibilityState={{
+          selected: abaAtiva === "perfil",
+        }}
       >
         <FontAwesome5
-          name="paw"
+          name="user-circle"
           size={20}
-          color={abaAtiva === "pets" ? COLORS.yellow : COLORS.cinzaclaro}
+          color={abaAtiva === "perfil" ? COLORS.yellow : COLORS.cinzaclaro}
         />
-        {abaAtiva === "pets" && <View style={styles.tracoAtivo} />}
+
+        {abaAtiva === "perfil" && <View style={styles.tracoAtivo} />}
       </TouchableOpacity>
     </View>
   );
 }
 
+// Estilização
 const styles = StyleSheet.create({
   rodape: {
     flexDirection: "row",
@@ -148,12 +178,14 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     zIndex: 99,
   },
+
   itemRodape: {
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 12,
     position: "relative",
   },
+
   tracoAtivo: {
     position: "absolute",
     bottom: -8,
