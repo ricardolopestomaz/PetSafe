@@ -2,6 +2,10 @@ import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 
+import {
+  finalizarRecuperacaoSenha,
+  iniciarRecuperacaoSenha,
+} from '@/lib/recuperacaoSenha';
 import { supabase } from '@/lib/supabaseClient';
 
 function extrairTokensDaUrl(url: string) {
@@ -31,6 +35,14 @@ function extrairTokensDaUrl(url: string) {
   return { accessToken, refreshToken, type };
 }
 
+// É recuperação quando o Supabase manda type=recovery (fluxo implícito)
+// ou quando o link aponta para a tela redefinir_senha (fluxo PKCE, que só traz ?code=)
+function ehLinkDeRecuperacao(url: string, type: string | null) {
+  if (type === 'recovery') return true;
+  const caminho = url.split(/[?#]/)[0];
+  return caminho.includes('redefinir_senha');
+}
+
 async function tratarUrl(url: string | null) {
   if (!url) {
     return;
@@ -42,34 +54,37 @@ async function tratarUrl(url: string | null) {
     return;
   }
 
+  const recuperacao = ehLinkDeRecuperacao(url, dadosAuth.type);
+
+  // Marca antes de criar a sessão, para o _layout não redirecionar para (tabs)
+  if (recuperacao) {
+    iniciarRecuperacaoSenha();
+  }
+
+  let error: unknown = null;
+
   if ('code' in dadosAuth && dadosAuth.code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(dadosAuth.code);
-    if (error) {
-      return;
-    }
-    if (dadosAuth.type === 'recovery') {
-      router.replace('/(auth)/recuperar_senha');
-    } else {
-      router.replace('/(tabs)');
+    ({ error } = await supabase.auth.exchangeCodeForSession(dadosAuth.code));
+  } else if ('accessToken' in dadosAuth && dadosAuth.accessToken && dadosAuth.refreshToken) {
+    ({ error } = await supabase.auth.setSession({
+      access_token: dadosAuth.accessToken,
+      refresh_token: dadosAuth.refreshToken,
+    }));
+  } else {
+    return;
+  }
+
+  if (error) {
+    if (recuperacao) {
+      finalizarRecuperacaoSenha();
     }
     return;
   }
 
-  if ('accessToken' in dadosAuth && dadosAuth.accessToken && dadosAuth.refreshToken) {
-    const { error } = await supabase.auth.setSession({
-      access_token: dadosAuth.accessToken,
-      refresh_token: dadosAuth.refreshToken,
-    });
-
-    if (error) {
-      return;
-    }
-
-    if (dadosAuth.type === 'recovery') {
-      router.replace('/(auth)/recuperar_senha');
-    } else {
-      router.replace('/(tabs)');
-    }
+  if (recuperacao) {
+    router.replace('/(auth)/redefinir_senha');
+  } else {
+    router.replace('/(tabs)');
   }
 }
 

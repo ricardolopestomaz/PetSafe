@@ -203,7 +203,11 @@ export default function PetMapNative({
       <View style={styles.mapWrapper}>
         <WebView
           ref={webViewRef}
-          originWhitelist={["*"]}
+          // Só o HTML local do mapa carrega dentro do WebView. Qualquer outra
+          // navegação (ex.: "Traçar Rota no Google Maps") é aberta fora do app
+          // pelo sistema, em vez de substituir o mapa por uma página externa.
+          // Tiles, Leaflet e fontes são recursos, não navegação: continuam carregando.
+          originWhitelist={["about:blank", "about:srcdoc"]}
           source={{ html: leafletHtml }}
           style={styles.map}
           javaScriptEnabled={true}

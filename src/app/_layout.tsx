@@ -22,6 +22,7 @@ import {
 
 import { DS } from "@/global/themes";
 import { useAuthDeepLink } from "@/hooks/use-auth-deep-link";
+import { recuperacaoSenhaEmAndamento } from "@/lib/recuperacaoSenha";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function RootLayout() {
@@ -60,9 +61,13 @@ export default function RootLayout() {
 
     if (noCallback) return; // deixa o retorno do login com Google terminar
 
+    // Sessão vinda de "esqueci minha senha": o usuário precisa concluir
+    // a redefinição em redefinir_senha antes de entrar no app
+    const emRecuperacao = recuperacaoSenhaEmAndamento();
+
     if (!session && !naAreaAuth) {
       router.replace("/(auth)/login");
-    } else if (session && naAreaAuth) {
+    } else if (session && naAreaAuth && !emRecuperacao) {
       router.replace("/(tabs)");
     }
   }, [session, sessaoCarregada, segments, navigationState?.key]);

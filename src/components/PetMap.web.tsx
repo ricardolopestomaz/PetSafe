@@ -81,6 +81,9 @@ export default function PetMapWeb({
   // Escuta mensagens vindas do mapa (Leaflet dentro do iframe)
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
+      // Só aceita mensagens vindas do iframe deste mapa
+      const janelaDoMapa = iframeRef.current?.contentWindow;
+      if (!janelaDoMapa || event.source !== janelaDoMapa) return;
       if (!event.data || typeof event.data !== "object") return;
 
       if (event.data.type === "MARKER_CLICKED") {
@@ -111,6 +114,9 @@ export default function PetMapWeb({
 
   function enviarComandoParaMapa(type: string, payload?: any) {
     if (iframeRef.current && iframeRef.current.contentWindow) {
+      // O iframe é sandbox (origem opaca "null"), então o navegador não aceita
+      // outra origem como alvo além de "*". A mensagem vai direto para a janela
+      // do iframe e só contém comandos do mapa; o iframe confere o remetente.
       iframeRef.current.contentWindow.postMessage(
         { type, ...payload },
         "*"
@@ -208,6 +214,10 @@ export default function PetMapWeb({
         {React.createElement("iframe", {
           ref: iframeRef,
           srcDoc: leafletHtml,
+          // Isola o mapa: sem allow-same-origin o iframe não acessa o DOM,
+          // cookies nem o localStorage do app (onde fica a sessão do Supabase).
+          // allow-popups(+escape) mantém o botão "Traçar Rota no Google Maps".
+          sandbox: "allow-scripts allow-popups allow-popups-to-escape-sandbox",
           style: {
             width: "100%",
             height: "100%",

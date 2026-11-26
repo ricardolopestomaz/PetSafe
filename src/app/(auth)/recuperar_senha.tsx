@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Alert } from "react-native";
 import { router } from "expo-router";
+import * as Linking from "expo-linking";
 
 import { supabase } from "@/lib/supabaseClient";
 import {
@@ -25,8 +26,10 @@ export default function RecuperarSenha() {
 
     setCarregando(true);
 
+    // Usa o scheme do app.json (petsafefront://redefinir_senha em builds;
+    // exp://.../--/redefinir_senha no Expo Go; http(s)://.../redefinir_senha na web)
     const { error } = await supabase.auth.resetPasswordForEmail(emailLimpo, {
-      redirectTo: "petsafe://redefinir_senha",
+      redirectTo: Linking.createURL("/redefinir_senha"),
     });
 
     setCarregando(false);
