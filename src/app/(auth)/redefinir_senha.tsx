@@ -4,9 +4,16 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 
 import * as AuthController from "@/controller/authController";
+import { finalizarRecuperacaoSenha } from "@/lib/recuperacaoSenha";
 import { supabase } from "@/lib/supabaseClient";
 import { DS } from "@/global/themes";
-import { AuthLayout, Field, FormHeader, PrimaryButton } from "@/components/ds";
+import {
+  AuthLayout,
+  ErrorBanner,
+  Field,
+  FormHeader,
+  PrimaryButton,
+} from "@/components/ds";
 
 export default function RedefinirSenha() {
   const [novaSenha, setNovaSenha] = useState("");
@@ -14,14 +21,35 @@ export default function RedefinirSenha() {
   const [mostrarNovaSenha, setMostrarNovaSenha] = useState(false);
   const [mostrarConfirmarSenha, setMostrarConfirmarSenha] = useState(false);
   const [carregando, setCarregando] = useState(false);
+  // null = verificando; a sessão pode chegar alguns instantes depois
+  // (o deep link é processado em paralelo quando o app abre pelo e-mail)
+  const [temSessao, setTemSessao] = useState<boolean | null>(null);
 
   useEffect(() => {
+    let ativo = true;
+
     supabase.auth.getSession().then(({ data }) => {
-      if (!data.session) {
-        router.replace("/(auth)/login");
-      }
+      if (ativo) setTemSessao(Boolean(data.session));
     });
+
+    const { data: listener } = supabase.auth.onAuthStateChange(
+      (_evento, sessao) => {
+        if (ativo) setTemSessao(Boolean(sessao));
+      },
+    );
+
+    return () => {
+      ativo = false;
+      listener.subscription.unsubscribe();
+    };
   }, []);
+
+  async function cancelar() {
+    // Encerra a sessão temporária da recuperação e volta ao login
+    finalizarRecuperacaoSenha();
+    await supabase.auth.signOut();
+    router.replace("/(auth)/login");
+  }
 
   async function redefinir() {
     setCarregando(true);
@@ -40,7 +68,9 @@ export default function RedefinirSenha() {
       {
         text: "OK",
         onPress: () => {
-          router.replace("/(auth)/login");
+          // Recuperação concluída: o usuário já está logado com a nova senha
+          finalizarRecuperacaoSenha();
+          router.replace("/(tabs)");
         },
       },
     ]);
@@ -59,8 +89,8 @@ export default function RedefinirSenha() {
   return (
     <AuthLayout
       actionLabel="Cancelar"
-      onActionPress={() => router.replace("/(auth)/login")}
-      onLogoPress={() => router.replace("/(auth)/login")}
+      onActionPress={cancelar}
+      onLogoPress={cancelar}
       scroll={false}
       logoSize="sm"
     >
@@ -70,6 +100,10 @@ export default function RedefinirSenha() {
         title="Criar nova senha"
         subtitle="Digite e confirme sua nova senha para proteger seu acesso."
       />
+
+      {temSessao === false ? (
+        <ErrorBanner message="Link de redefinição inválido ou expirado. Volte ao login e solicite um novo link." />
+      ) : null}
 
       <Field
         label="Nova senha"
@@ -100,6 +134,7 @@ export default function RedefinirSenha() {
         iconRight="checkmark"
         onPress={redefinir}
         loading={carregando}
+        disabled={!temSessao}
       />
     </AuthLayout>
   );

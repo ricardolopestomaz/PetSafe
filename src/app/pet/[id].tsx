@@ -26,43 +26,84 @@ export default function PetDetails() {
   const [pet, setPet] = useState<Pet | null>(null);
   const [leituras, setLeituras] = useState<Leitura[]>([]);
   const [carregando, setCarregando] = useState(true);
+  // Incrementado pelo botão "Tentar novamente" para refazer a busca
+  const [tentativa, setTentativa] = useState(0);
 
   useEffect(() => {
+    let ativo = true;
+
     async function carregarDados() {
-      if (!id) return;
+      if (!id) {
+        setPet(null);
+        setCarregando(false);
+        return;
+      }
       try {
         setCarregando(true);
         const [dadosPet, dadosLeituras] = await Promise.all([
           getPet(id).catch(() => null),
           listarLeiturasPorPet(id).catch(() => []),
         ]);
+        if (!ativo) return;
 
-        if (dadosPet) {
-          setPet(dadosPet);
-        } else {
-          // Fallback gracioso se estiver em desenvolvimento
-          setPet({
-            id,
-            nome: "Pipoca",
-            especie: "Cachorro",
-            raca: "Golden Retriever",
-            observacoes: "Pet cadastrado no PetSafe.",
-          });
-        }
-
-        setLeituras(dadosLeituras);
+        setPet(dadosPet ?? null);
+        setLeituras(dadosPet ? dadosLeituras : []);
       } finally {
-        setCarregando(false);
+        if (ativo) setCarregando(false);
       }
     }
 
     carregarDados();
-  }, [id]);
+    return () => {
+      ativo = false;
+    };
+  }, [id, tentativa]);
+
+  function voltar() {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace("/(tabs)");
+    }
+  }
 
   if (carregando) {
     return (
       <SafeAreaView style={styles.centerContainer}>
         <ActivityIndicator size="large" color={COLORS.yellow} />
+      </SafeAreaView>
+    );
+  }
+
+  if (!pet) {
+    return (
+      <SafeAreaView style={styles.centerContainer}>
+        <View style={styles.naoEncontrado}>
+          <Ionicons name="paw-outline" size={44} color={C.textSubtle} />
+          <Text style={styles.naoEncontradoTitulo}>Pet não encontrado</Text>
+          <Text style={styles.naoEncontradoTexto}>
+            Não foi possível carregar este pet. Ele pode ter sido removido ou
+            você não tem acesso a ele. Verifique sua conexão e tente novamente.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.botaoMapaCompleto}
+            onPress={() => setTentativa((t) => t + 1)}
+            accessibilityRole="button"
+          >
+            <Ionicons name="refresh" size={15} color={C.primaryText} />
+            <Text style={styles.textoBotaoMapa}>Tentar novamente</Text>
+          </TouchableOpacity>
+
+          <Pressable
+            onPress={voltar}
+            hitSlop={8}
+            accessibilityRole="button"
+            style={({ pressed }) => pressed && styles.pressed}
+          >
+            <Text style={styles.naoEncontradoVoltar}>Voltar</Text>
+          </Pressable>
+        </View>
       </SafeAreaView>
     );
   }
@@ -75,7 +116,7 @@ export default function PetDetails() {
       <View style={styles.header}>
         <Pressable
           style={({ pressed }) => [styles.botaoVoltar, pressed && styles.pressed]}
-          onPress={() => router.back()}
+          onPress={voltar}
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Voltar"
@@ -183,6 +224,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: C.bg,
+  },
+  naoEncontrado: {
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 32,
+    maxWidth: 420,
+  },
+  naoEncontradoTitulo: {
+    fontSize: 18,
+    fontFamily: DS.font.bold,
+    color: C.text,
+  },
+  naoEncontradoTexto: {
+    fontSize: 13,
+    fontFamily: DS.font.regular,
+    color: C.textMuted,
+    textAlign: "center",
+    marginBottom: 4,
+  },
+  naoEncontradoVoltar: {
+    fontSize: 14,
+    fontFamily: DS.font.semibold,
+    color: C.text,
+    paddingVertical: 6,
   },
   header: {
     flexDirection: "row",

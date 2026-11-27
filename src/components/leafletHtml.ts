@@ -7,6 +7,24 @@ export interface GenerateLeafletHtmlParams {
   mostrarTrajeto?: boolean;
 }
 
+// Serializa um valor para ser colocado DENTRO de uma tag <script>.
+// Escapa "<", ">" e "&" para que um texto como "</script>" vindo do banco
+// não feche a tag e injete HTML, e U+2028/U+2029, que quebram JS antigo.
+function paraScript(valor: unknown): string {
+  return JSON.stringify(valor)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
+// Garante número válido (coordenadas entram direto no JS do mapa)
+function coordenada(valor: unknown, padrao: number): number {
+  const n = Number(valor);
+  return Number.isFinite(n) ? n : padrao;
+}
+
 export function generateLeafletHtml({
   leituras,
   activeId,
@@ -14,10 +32,14 @@ export function generateLeafletHtml({
 }: GenerateLeafletHtmlParams): string {
   const defaultCenter =
     leituras.length > 0
-      ? [leituras[0].latitude, leituras[0].longitude]
+      ? [
+          coordenada(leituras[0].latitude, -10.1843),
+          coordenada(leituras[0].longitude, -48.3336),
+        ]
       : [-10.1843, -48.3336];
 
-  const jsonLeituras = JSON.stringify(leituras);
+  const jsonLeituras = paraScript(leituras);
+  const jsonActiveId = paraScript(String(activeId ?? ""));
 
   return `<!DOCTYPE html>
 <html>
@@ -194,17 +216,36 @@ export function generateLeafletHtml({
   <div id="map"></div>
   <script>
     const leituras = ${jsonLeituras};
-    let activeId = "${activeId}";
+    let activeId = ${jsonActiveId};
     const mostrarTrajeto = ${mostrarTrajeto ? "true" : "false"};
+
+    // Escapa texto antes de colocá-lo no HTML dos pins/popups (evita XSS)
+    function esc(valor) {
+      return String(valor == null ? '' : valor)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function num(valor) {
+      const n = Number(valor);
+      return Number.isFinite(n) ? n : null;
+    }
 
     function notificarApp(data) {
       try {
         if (window.ReactNativeWebView && window.ReactNativeWebView.postMessage) {
           window.ReactNativeWebView.postMessage(JSON.stringify(data));
+          return;
         }
       } catch (err) {}
       try {
-        if (window.parent && window.parent.postMessage) {
+        // Web: o iframe é sandbox (origem opaca), então não há origem nomeável
+        // para usar como alvo. A mensagem só leva {type, id}, nada sensível,
+        // e o app (PetMap.web) confere que ela veio deste iframe.
+        if (window.parent && window.parent !== window) {
           window.parent.postMessage(data, '*');
         }
       } catch (err) {}
@@ -255,11 +296,14 @@ export function generateLeafletHtml({
       const isLatest = index === 0;
       const isActive = l.id === activeId;
       const numOrdem = leituras.length - index;
-      const coord = [l.latitude, l.longitude];
+      const lat = num(l.latitude);
+      const lng = num(l.longitude);
+      if (lat === null || lng === null) return; // ignora leitura sem coordenada válida
+      const coord = [lat, lng];
       latlngs.push(coord);
 
       const html = \`
-        <div class="pin-container \${isLatest ? 'is-latest' : ''} \${isActive ? 'is-active' : ''}" id="pin-\${l.id}">
+        <div class="pin-container \${isLatest ? 'is-latest' : ''} \${isActive ? 'is-active' : ''}" id="pin-\${esc(l.id)}">
           \${isLatest ? '<div class="radar-pulse"></div>' : ''}
           <div class="badge-ordem">\${isLatest ? '★ #1 Mais Recente' : '#' + numOrdem}</div>
           <div class="pin-circle">
@@ -277,8 +321,11 @@ export function generateLeafletHtml({
         popupAnchor: [0, -50]
       });
 
-      const dateStr = new Date(l.criado_em).toLocaleString('pt-BR');
-      const googleMapsUrl = \`https://www.google.com/maps/dir/?api=1&destination=\${l.latitude},\${l.longitude}\`;
+      const dateStr = esc(new Date(l.criado_em).toLocaleString('pt-BR'));
+      const googleMapsUrl = esc(\`https://www.google.com/maps/dir/?api=1&destination=\${lat},\${lng}\`);
+      const nomePet = esc(l.pet?.nome || 'Medalha PetSafe');
+      const endereco = esc(l.endereco_aproximado || (l.bairro ? l.bairro + ', Palmas' : 'Coordenadas'));
+      const dispositivo = esc(l.lido_por_dispositivo);
 
       const popupContent = \`
         <div class="popup-box">
@@ -286,19 +333,19 @@ export function generateLeafletHtml({
             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: -1px; margin-right: 4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
             \${isLatest ? 'ÚLTIMO ESCANEAMENTO' : 'Escaneamento #' + numOrdem}
           </div>
-          <h4 class="popup-pet">\${l.pet?.nome || 'Medalha PetSafe'}</h4>
+          <h4 class="popup-pet">\${nomePet}</h4>
           <div class="popup-time">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             \${dateStr}
           </div>
           <div class="popup-addr">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 4px;"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            \${l.endereco_aproximado || (l.bairro ? l.bairro + ', Palmas' : 'Coordenadas')}
+            \${endereco}
           </div>
-          \${l.lido_por_dispositivo ? \`
+          \${dispositivo ? \`
             <div class="popup-device">
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -1px; margin-right: 4px;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
-              \${l.lido_por_dispositivo}
+              \${dispositivo}
             </div>\` : ''}
           <a class="popup-btn-rota" href="\${googleMapsUrl}" target="_blank" rel="noopener noreferrer">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -2px; margin-right: 6px;"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
@@ -351,8 +398,8 @@ export function generateLeafletHtml({
       if (!data || !data.type) return;
 
       if (data.type === 'SELECT_SCAN') {
-        const id = data.id;
-        if (markersMap[id]) {
+        const id = String(data.id);
+        if (Object.prototype.hasOwnProperty.call(markersMap, id)) {
           highlightPin(id);
           map.flyTo(markersMap[id].coord, 16, { duration: 0.8 });
           markersMap[id].marker.openPopup();
@@ -362,13 +409,11 @@ export function generateLeafletHtml({
           map.fitBounds(L.latLngBounds(latlngs), { padding: [60, 60] });
         }
       } else if (data.type === 'CENTER_LATEST') {
-        if (leituras.length > 0) {
-          const first = leituras[0];
-          map.flyTo([first.latitude, first.longitude], 16, { duration: 0.8 });
-          if (markersMap[first.id]) {
-            markersMap[first.id].marker.openPopup();
-            highlightPin(first.id);
-          }
+        const first = leituras[0];
+        if (first && Object.prototype.hasOwnProperty.call(markersMap, String(first.id))) {
+          map.flyTo(markersMap[first.id].coord, 16, { duration: 0.8 });
+          markersMap[first.id].marker.openPopup();
+          highlightPin(first.id);
         }
       } else if (data.type === 'SET_LAYER') {
         if (data.layer === 'satelite') {
@@ -379,7 +424,10 @@ export function generateLeafletHtml({
           streetLayer.addTo(map);
         }
       } else if (data.type === 'USER_LOCATION') {
-        const userCoord = [data.lat, data.lng];
+        const uLat = num(data.lat);
+        const uLng = num(data.lng);
+        if (uLat === null || uLng === null) return;
+        const userCoord = [uLat, uLng];
         L.circleMarker(userCoord, {
           radius: 8,
           fillColor: '#3B82F6',
@@ -393,19 +441,16 @@ export function generateLeafletHtml({
 
     window.processarComando = processarComando;
 
+    // No app nativo os comandos chegam por injectJavaScript (processarComando).
+    // Na web chegam por postMessage: só aceita os que vêm da janela que
+    // contém o iframe (o PetMap.web), ignorando qualquer outra origem.
     window.addEventListener('message', function(e) {
+      if (window.parent === window || e.source !== window.parent) return;
       var d = e.data;
       if (typeof d === 'string') {
-        try { d = JSON.parse(d); } catch(_) {}
+        try { d = JSON.parse(d); } catch(_) { return; }
       }
-      processarComando(d);
-    });
-
-    document.addEventListener('message', function(e) {
-      var d = e.data;
-      if (typeof d === 'string') {
-        try { d = JSON.parse(d); } catch(_) {}
-      }
+      if (!d || typeof d !== 'object') return;
       processarComando(d);
     });
 
