@@ -1,8 +1,8 @@
-import { CriarPetPayload, PetDTO } from "@/@types/pet";
+import { AtualizarPetPayload, CriarPetPayload, PetDTO } from "@/@types/pet";
 import { supabase } from "@/lib/supabaseClient";
 
 export type Pet = PetDTO;
-export type { CriarPetPayload, PetDTO };
+export type { AtualizarPetPayload, CriarPetPayload, PetDTO };
 
 // Deixe false para ver só os dados reais do banco.
 // Mude para true apenas em demonstrações sem login.
@@ -87,8 +87,8 @@ export async function getPet(id: string) {
   throw error ?? new Error("Pet não encontrado");
 }
 
-// UPDATE
-export async function atualizarPet(id: string, campos: Partial<Pet>) {
+// UPDATE - só aceita os campos editáveis (AtualizarPetPayload)
+export async function atualizarPet(id: string, campos: AtualizarPetPayload) {
   const { data, error } = await supabase
     .from("pets")
     .update(campos)

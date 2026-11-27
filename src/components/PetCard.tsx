@@ -3,30 +3,11 @@ import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 import { SquishyPressable } from "@/components/ds";
+import { calcularIdade } from "@/controller/petController";
 import { DS } from "@/global/themes";
 import type { Pet } from "@/services/pets";
 
 const C = DS.colors;
-
-// Calcula a idade a partir de AAAA-MM-DD
-function calcularIdade(iso?: string): string | null {
-  if (!iso) return null;
-  const nascimento = new Date(`${iso}T00:00:00`);
-  if (isNaN(nascimento.getTime())) return null;
-
-  const hoje = new Date();
-  let meses =
-    (hoje.getFullYear() - nascimento.getFullYear()) * 12 +
-    (hoje.getMonth() - nascimento.getMonth());
-  if (hoje.getDate() < nascimento.getDate()) meses--;
-
-  if (meses < 0) return null;
-  if (meses < 1) return "Menos de 1 mês";
-  if (meses < 12) return `${meses} ${meses === 1 ? "mês" : "meses"}`;
-
-  const anos = Math.floor(meses / 12);
-  return `${anos} ${anos === 1 ? "ano" : "anos"}`;
-}
 
 function iconeDaEspecie(especie?: string): "dog" | "cat" | "paw" {
   if (especie === "Cachorro") return "dog";

@@ -60,6 +60,25 @@ export async function enviarMidiaPet(
   );
 }
 
+// Remove do Storage arquivos que deixaram de ser usados (foto/vídeo trocado,
+// pet excluído ou cadastro que falhou). É "melhor esforço": se o Storage
+// recusar, a operação principal não é desfeita, só fica o arquivo sobrando.
+export async function removerMidias(urls: (string | null | undefined)[]) {
+  const marcador = `/object/public/${BUCKET}/`;
+  const caminhos = urls
+    .filter((url): url is string => Boolean(url) && url!.includes(marcador))
+    .map((url) => decodeURIComponent(url.split(marcador)[1].split("?")[0]));
+
+  if (caminhos.length === 0) return;
+
+  try {
+    const { error } = await supabase.storage.from(BUCKET).remove(caminhos);
+    if (error) console.warn("[removerMidias]", error.message);
+  } catch (e) {
+    console.warn("[removerMidias] Falha na requisição:", e);
+  }
+}
+
 // Envia a foto de perfil do tutor (mesmo bucket, mesma pasta do usuário)
 export async function enviarFotoPerfil(
   arquivo: ArquivoSelecionado,

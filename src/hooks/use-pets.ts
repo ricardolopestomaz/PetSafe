@@ -1,5 +1,6 @@
 import {
   atualizarPet,
+  AtualizarPetPayload,
   criarPet,
   CriarPetPayload,
   deletarPet,
@@ -40,7 +41,7 @@ export function usePets() {
     return novo
   }
 
-  const atualizar = async (id: string, campos: Partial<Pet>) => {
+  const atualizar = async (id: string, campos: AtualizarPetPayload) => {
     const atualizado = await atualizarPet(id, campos)
     setPets((prev) => prev.map((p) => (p.id === id ? atualizado : p)))
     return atualizado
