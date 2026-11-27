@@ -1,4 +1,11 @@
-import { atualizarPet, criarPet, deletarPet, listarMeusPets, Pet } from '@/services/pets'
+import {
+  atualizarPet,
+  criarPet,
+  CriarPetPayload,
+  deletarPet,
+  listarMeusPets,
+  Pet,
+} from '@/services/pets'
 import { useCallback, useEffect, useState } from 'react'
 
 export function usePets() {
@@ -27,7 +34,7 @@ export function usePets() {
     return () => { mounted = false }
   }, [carregar])
 
-  const adicionar = async (pet: Pet) => {
+  const adicionar = async (pet: CriarPetPayload) => {
     const novo = await criarPet(pet)
     setPets((prev) => [...prev, novo])
     return novo

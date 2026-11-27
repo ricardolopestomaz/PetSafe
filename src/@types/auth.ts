@@ -15,6 +15,22 @@ export interface LoginGoogleRequestDTO {
   redirectTo: string;
 }
 
+// Preferências de comunicação do tutor.
+// Ficam em auth.users.user_metadata.preferencias (não há coluna/tabela para isso no banco).
+export interface PreferenciasTutorDTO {
+  alertaEscaneamentoPush: boolean;
+  alertaEscaneamentoEmail: boolean;
+  novidadesPetSafe: boolean;
+}
+
+export const PREFERENCIAS_PADRAO: PreferenciasTutorDTO = {
+  alertaEscaneamentoPush: true,
+  alertaEscaneamentoEmail: true,
+  novidadesPetSafe: false,
+};
+
+export type ProvedorLogin = "email" | "google" | string;
+
 export interface PerfilUsuarioDTO {
   id: string;
   nome: string;
@@ -23,6 +39,20 @@ export interface PerfilUsuarioDTO {
   endereco?: string;
   fotoPerfilUrl?: string;
   criadoEm?: string;
+  // Informações da conta (vindas do Supabase Auth)
+  ultimoAcessoEm?: string;
+  emailConfirmado?: boolean;
+  emailPendente?: string; // novo e-mail aguardando confirmação
+  provedores?: ProvedorLogin[];
+  possuiSenha?: boolean; // false = conta criada só com Google
+  preferencias?: PreferenciasTutorDTO;
+}
+
+// Campos que o próprio tutor pode alterar na tabela public.usuarios
+export interface AtualizarPerfilPayload {
+  nome: string;
+  telefone: string | null;
+  fotoPerfilUrl: string | null;
 }
 
 export interface AuthResultDTO {
