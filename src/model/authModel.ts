@@ -1,4 +1,9 @@
-import { PerfilUsuarioDTO } from "@/@types/auth";
+import {
+  AtualizarPerfilPayload,
+  PerfilUsuarioDTO,
+  PREFERENCIAS_PADRAO,
+  PreferenciasTutorDTO,
+} from "@/@types/auth";
 import { supabase } from "@/lib/supabaseClient";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
@@ -190,19 +195,39 @@ export async function sincronizarUsuario(user: any, nomeFallback?: string) {
     const fotoPerfil =
       user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
 
-    // Só envia a foto quando existe, para não apagar a foto já salva
-    const registro: Record<string, any> = {
-      id: user.id,
-      nome,
-      email: user.email,
-    };
-    if (fotoPerfil) {
-      registro.foto_perfil_url = fotoPerfil;
-    }
-
-    const { error } = await supabase
+    const { data: existente } = await supabase
       .from("usuarios")
-      .upsert(registro, { onConflict: "id" });
+      .select("id, nome, foto_perfil_url")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    let error;
+
+    if (!existente) {
+      // Primeiro acesso: cria o perfil com os dados do Auth/Google
+      const registro: Record<string, any> = {
+        id: user.id,
+        nome,
+        email: user.email,
+      };
+      if (fotoPerfil) registro.foto_perfil_url = fotoPerfil;
+
+      ({ error } = await supabase.from("usuarios").insert(registro));
+    } else {
+      // Perfil já existe: NÃO sobrescreve nome/foto editados pelo tutor no app.
+      // Só mantém o e-mail em dia (pode ter mudado após confirmação) e
+      // preenche nome/foto se ainda estiverem vazios.
+      const atualizacao: Record<string, any> = { email: user.email };
+      if (!existente.nome) atualizacao.nome = nome;
+      if (!existente.foto_perfil_url && fotoPerfil) {
+        atualizacao.foto_perfil_url = fotoPerfil;
+      }
+
+      ({ error } = await supabase
+        .from("usuarios")
+        .update(atualizacao)
+        .eq("id", user.id));
+    }
 
     if (error) {
       console.warn(
@@ -248,11 +273,102 @@ export async function obterUsuarioAtual(): Promise<PerfilUsuarioDTO | null> {
     // Caso a tabela não esteja acessível, mantém dados do Auth
   }
 
+  const provedores: string[] = Array.from(
+    new Set(
+      (user.identities ?? []).map((identidade) => identidade.provider),
+    ),
+  );
+  if (provedores.length === 0 && user.app_metadata?.provider) {
+    provedores.push(user.app_metadata.provider);
+  }
+
   return {
     id: user.id,
     email: user.email || "",
     nome: nome || "Usuário",
     fotoPerfilUrl,
     telefone,
+    criadoEm: user.created_at,
+    ultimoAcessoEm: user.last_sign_in_at,
+    emailConfirmado: Boolean(user.email_confirmed_at),
+    emailPendente: user.new_email || undefined,
+    provedores,
+    possuiSenha: provedores.includes("email"),
+    preferencias: {
+      ...PREFERENCIAS_PADRAO,
+      ...(user.user_metadata?.preferencias ?? {}),
+    },
   };
+}
+
+// Atualiza os dados pessoais do tutor logado em public.usuarios.
+// O filtro por id + RLS garantem que só a própria linha é alterada.
+export async function atualizarPerfil(dados: AtualizarPerfilPayload) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return { sucesso: false, mensagem: "Sessão expirada. Entre novamente." };
+  }
+
+  const { data, error } = await supabase
+    .from("usuarios")
+    .update({
+      nome: dados.nome,
+      telefone: dados.telefone,
+      foto_perfil_url: dados.fotoPerfilUrl,
+    })
+    .eq("id", user.id)
+    .select("id")
+    .maybeSingle();
+
+  if (error) {
+    return { sucesso: false, mensagem: error.message };
+  }
+  if (!data) {
+    // Nenhuma linha atualizada: perfil inexistente ou bloqueado pela RLS
+    return {
+      sucesso: false,
+      mensagem: "Não foi possível encontrar seu perfil para atualizar.",
+    };
+  }
+
+  // Mantém o nome do Auth em dia (usado como fallback em outras telas)
+  await supabase.auth.updateUser({ data: { nome: dados.nome } });
+
+  return { sucesso: true };
+}
+
+// Solicita a troca de e-mail. O Supabase envia um link de confirmação;
+// o e-mail só muda de fato depois que o tutor confirma.
+export async function solicitarTrocaEmail(novoEmail: string) {
+  const { error } = await supabase.auth.updateUser(
+    { email: novoEmail },
+    { emailRedirectTo: Linking.createURL("/perfil") },
+  );
+
+  if (error) {
+    return { sucesso: false, mensagem: error.message };
+  }
+  return { sucesso: true };
+}
+
+// Confere a senha atual antes de permitir a troca
+export async function verificarSenha(email: string, senha: string) {
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password: senha,
+  });
+  return !error;
+}
+
+export async function salvarPreferencias(preferencias: PreferenciasTutorDTO) {
+  const { error } = await supabase.auth.updateUser({
+    data: { preferencias },
+  });
+
+  if (error) {
+    return { sucesso: false, mensagem: error.message };
+  }
+  return { sucesso: true };
 }
