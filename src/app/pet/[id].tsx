@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
+import { useVideoPlayer, VideoView } from "expo-video";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,7 +14,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { TiltCard } from "@/components/ds";
 import FichaMedicaResumo from "@/components/FichaMedicaResumo";
 import { PetIconBySpecies } from "@/components/PetIcons";
 import PetMap from "@/components/PetMap";
@@ -22,11 +23,83 @@ import { getPet, Pet } from "@/services/pets";
 
 const C = DS.colors;
 
+// Cores do card do topo, vindas do tema (âmbar de destaque + azul da marca)
+const FUNDO_CARD = COLORS.yellow;
+const TEXTO_CARD = COLORS.blue;
+
+// AAAA-MM-DD -> DD/MM/AAAA
+function formatarData(iso?: string | null): string | null {
+  if (!iso) return null;
+  const [a, m, d] = iso.slice(0, 10).split("-");
+  return a && m && d ? `${d}/${m}/${a}` : null;
+}
+
+// Calcula a idade a partir de AAAA-MM-DD
+function calcularIdade(iso?: string | null): string | null {
+  if (!iso) return null;
+  const nascimento = new Date(`${iso.slice(0, 10)}T00:00:00`);
+  if (isNaN(nascimento.getTime())) return null;
+
+  const hoje = new Date();
+  let meses =
+    (hoje.getFullYear() - nascimento.getFullYear()) * 12 +
+    (hoje.getMonth() - nascimento.getMonth());
+  if (hoje.getDate() < nascimento.getDate()) meses--;
+
+  if (meses < 0) return null;
+  if (meses < 1) return "Menos de 1 mês";
+  if (meses < 12) return `${meses} ${meses === 1 ? "mês" : "meses"}`;
+
+  const anos = Math.floor(meses / 12);
+  return `${anos} ${anos === 1 ? "ano" : "anos"}`;
+}
+
+// Player de vídeo (componente separado porque usa hooks)
+function VideoPet({ uri }: { uri: string }) {
+  const player = useVideoPlayer(uri, (p) => {
+    p.loop = false;
+  });
+
+  return (
+    <VideoView
+      player={player}
+      style={styles.video}
+      contentFit="contain"
+      nativeControls
+    />
+  );
+}
+
+function LinhaInfo({
+  icone,
+  titulo,
+  valor,
+}: {
+  icone: keyof typeof Ionicons.glyphMap;
+  titulo: string;
+  valor: string | null | undefined;
+}) {
+  return (
+    <View style={styles.linhaInfo}>
+      <View style={styles.linhaIcone}>
+        <Ionicons name={icone} size={16} color={C.textMuted} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.linhaTitulo}>{titulo}</Text>
+        <Text style={[styles.linhaValor, !valor && styles.linhaValorVazio]}>
+          {valor || "Não informado"}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 export default function PetDetails() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const [pet, setPet] = useState<Pet | null>(null);
   const [leituras, setLeituras] = useState<Leitura[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [erroFoto, setErroFoto] = useState(false);
 
   // Recarrega sempre que a tela volta ao foco (ex.: depois de editar o pet)
   useFocusEffect(
@@ -43,6 +116,7 @@ export default function PetDetails() {
           if (!ativo) return;
           setPet(dadosPet);
           setLeituras(dadosLeituras);
+          setErroFoto(false);
         } finally {
           if (ativo) setCarregando(false);
         }
@@ -101,12 +175,15 @@ export default function PetDetails() {
   }
 
   const ultimaLeitura = leituras.length > 0 ? leituras[0] : null;
+  const mostrarFoto = Boolean(pet.foto_url) && !erroFoto;
+  const idade = calcularIdade(pet.data_nascimento);
+  const nascimento = formatarData(pet.data_nascimento);
+  const cadastradoEm = formatarData(pet.criado_em);
 
   return (
     <SafeAreaView style={styles.container}>
       {/* HEADER */}
       <View style={styles.header}>
-        {/* VOLTAR (esquerda) */}
         <Pressable
           style={({ pressed }) => [
             styles.botaoVoltar,
@@ -122,7 +199,6 @@ export default function PetDetails() {
 
         <Text style={styles.headerTitulo}>Detalhes do Pet</Text>
 
-        {/* EDITAR (direita, colorido) */}
         <Pressable
           style={({ pressed }) => [
             styles.botaoEditar,
@@ -138,36 +214,90 @@ export default function PetDetails() {
           <Ionicons name="create" size={20} color={C.primaryText} />
         </Pressable>
       </View>
+
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* CARD DO PET (3D Tilt Effect + Contraste Padrão AAA) */}
-        <TiltCard
-          variant="gradient"
-          contentStyle={styles.cardPetContent}
-          style={styles.cardPetContainer}
-          padding={22}
-        >
-          <View style={styles.avatarWrapper}>
-            <PetIconBySpecies
-              especie={pet.especie}
-              size={36}
-              fallbackColor={COLORS.white}
-            />
+        {/* CARD DO PET (fundo âmbar, com a foto do banco) */}
+        <View style={styles.cardPet}>
+          <View style={styles.fotoWrapper}>
+            {mostrarFoto ? (
+              <Image
+                source={{ uri: pet.foto_url }}
+                style={styles.fotoImagem}
+                resizeMode="cover"
+                onError={() => setErroFoto(true)}
+              />
+            ) : (
+              <PetIconBySpecies
+                especie={pet.especie}
+                size={44}
+                fallbackColor={TEXTO_CARD}
+              />
+            )}
           </View>
+
           <Text style={styles.petNome}>{pet.nome || "Pet"}</Text>
           <Text style={styles.petInfo}>
             {pet.especie || "Espécie não informada"} •{" "}
             {pet.raca || "Sem raça definida"}
           </Text>
-        </TiltCard>
+
+          <View style={styles.tags}>
+            {pet.especie ? (
+              <View style={styles.tag}>
+                <Text style={styles.tagTexto}>{pet.especie}</Text>
+              </View>
+            ) : null}
+            {idade ? (
+              <View style={styles.tag}>
+                <Text style={styles.tagTexto}>{idade}</Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* SOBRE O PET */}
+        <View style={styles.secao}>
+          <Text style={styles.secaoTitulo}>Sobre o pet</Text>
+
+          <LinhaInfo
+            icone="calendar-outline"
+            titulo="Data de nascimento"
+            valor={
+              nascimento ? `${nascimento}${idade ? ` (${idade})` : ""}` : null
+            }
+          />
+          <LinhaInfo icone="ribbon-outline" titulo="Raça" valor={pet.raca} />
+          <LinhaInfo icone="paw-outline" titulo="Espécie" valor={pet.especie} />
+          <LinhaInfo
+            icone="document-text-outline"
+            titulo="Observações"
+            valor={pet.observacoes}
+          />
+          <LinhaInfo
+            icone="time-outline"
+            titulo="Cadastrado em"
+            valor={cadastradoEm}
+          />
+        </View>
+
+        {/* VÍDEO DO PET (só aparece se tiver vídeo) */}
+        {pet.video_url ? (
+          <View style={styles.secao}>
+            <Text style={styles.secaoTitulo}>Vídeo do pet</Text>
+            <View style={styles.videoWrapper}>
+              <VideoPet uri={pet.video_url} />
+            </View>
+          </View>
+        ) : null}
 
         {/* FICHA MÉDICA BÁSICA */}
         {id ? <FichaMedicaResumo petId={id} /> : null}
 
         {/* SEÇÃO DO MAPA / ÚLTIMA LEITURA */}
-        <View style={styles.secaoMapa}>
+        <View style={styles.secao}>
           <View style={styles.secaoHeader}>
             <View style={{ flex: 1 }}>
               <Text style={styles.secaoTitulo}>Última Localização da Tag</Text>
@@ -250,6 +380,8 @@ const styles = StyleSheet.create({
     gap: 10,
     backgroundColor: C.bg,
   },
+
+  /* Header */
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -292,6 +424,7 @@ const styles = StyleSheet.create({
     fontFamily: DS.font.bold,
     color: C.text,
   },
+
   content: {
     padding: 20,
     gap: 20,
@@ -299,35 +432,75 @@ const styles = StyleSheet.create({
     width: "100%",
     alignSelf: "center",
   },
-  cardPetContainer: {
+
+  /* Card do pet (âmbar do tema) */
+  cardPet: {
     width: "100%",
-  },
-  cardPetContent: {
     alignItems: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    borderRadius: DS.radius.lg,
+    backgroundColor: FUNDO_CARD,
+    shadowColor: FUNDO_CARD,
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 4,
   },
-  avatarWrapper: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: C.cardBadgeBg,
+  fotoWrapper: {
+    width: 112,
+    height: 112,
+    borderRadius: 56,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: C.cardBadgeBorder,
+    borderWidth: 4,
+    borderColor: "rgba(255, 255, 255, 0.9)",
+    marginBottom: 12,
+  },
+  fotoImagem: {
+    width: "100%",
+    height: "100%",
   },
   petNome: {
-    fontSize: 22,
+    fontSize: 24,
     fontFamily: DS.font.bold,
-    color: C.cardText,
+    color: TEXTO_CARD,
   },
   petInfo: {
     fontSize: 13,
     fontFamily: DS.font.regular,
-    color: C.cardTextMuted,
+    color: TEXTO_CARD,
+    opacity: 0.85,
     marginTop: 3,
   },
-  secaoMapa: {
+  tags: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: 8,
+    marginTop: 12,
+  },
+  tag: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 14,
+    backgroundColor: "rgba(29, 30, 100, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(29, 30, 100, 0.22)",
+  },
+  tagTexto: {
+    fontSize: 12,
+    fontFamily: DS.font.semibold,
+    color: TEXTO_CARD,
+  },
+
+  /* Seções */
+  secao: {
     backgroundColor: C.surface,
     borderRadius: DS.radius.lg,
     borderWidth: 1,
@@ -350,6 +523,52 @@ const styles = StyleSheet.create({
     fontFamily: DS.font.regular,
     color: C.textMuted,
   },
+
+  /* Linhas de informação */
+  linhaInfo: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  linhaIcone: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: C.bg,
+    borderWidth: 1,
+    borderColor: C.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  linhaTitulo: {
+    fontSize: 11,
+    fontFamily: DS.font.semibold,
+    color: C.textMuted,
+  },
+  linhaValor: {
+    fontSize: 14,
+    fontFamily: DS.font.regular,
+    color: C.text,
+    marginTop: 1,
+  },
+  linhaValorVazio: {
+    color: C.textSubtle,
+  },
+
+  /* Vídeo */
+  videoWrapper: {
+    borderRadius: DS.radius.md,
+    overflow: "hidden",
+    backgroundColor: "#000000",
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  video: {
+    width: "100%",
+    height: 220,
+  },
+
+  /* Mapa */
   botaoMapaCompleto: {
     flexDirection: "row",
     alignItems: "center",

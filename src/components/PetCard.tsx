@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
 
@@ -93,7 +93,6 @@ export default function PetCard({ pet, onPress }: Props) {
             ) : null}
             {idade ? (
               <View style={s.tag}>
-                <Ionicons name="gift-outline" size={10} color={C.textMuted} />
                 <Text style={s.tagTexto}>{idade}</Text>
               </View>
             ) : null}
