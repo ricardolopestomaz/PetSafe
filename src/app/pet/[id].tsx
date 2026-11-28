@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { TiltCard } from "@/components/ds";
+import FichaMedicaResumo from "@/components/FichaMedicaResumo";
 import { PetIconBySpecies } from "@/components/PetIcons";
 import PetMap from "@/components/PetMap";
 import { COLORS, DS } from "@/global/themes";
@@ -137,7 +138,6 @@ export default function PetDetails() {
           <Ionicons name="create" size={20} color={C.primaryText} />
         </Pressable>
       </View>
-
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -162,6 +162,9 @@ export default function PetDetails() {
             {pet.raca || "Sem raça definida"}
           </Text>
         </TiltCard>
+
+        {/* FICHA MÉDICA BÁSICA */}
+        {id ? <FichaMedicaResumo petId={id} /> : null}
 
         {/* SEÇÃO DO MAPA / ÚLTIMA LEITURA */}
         <View style={styles.secaoMapa}>
