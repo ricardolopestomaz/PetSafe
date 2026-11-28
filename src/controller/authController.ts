@@ -7,6 +7,10 @@ type Resultado = {
   mensagem?: string;
 };
 
+type ResultadoGoogle = Resultado & {
+  redirecionando?: boolean;
+};
+
 type ResultadoCadastro = Resultado & {
   possuiSessao?: boolean;
 };
@@ -55,25 +59,39 @@ export async function realizarLogin(
   };
 }
 
-export async function realizarLoginGoogle(): Promise<Resultado> {
-  const res = await AuthModel.loginComGoogle();
-  if (!res.sucesso) {
-    if (res.mensagem?.includes('Forbidden use of secret API key')) {
-      return {
-        sucesso: false,
-        mensagem:
-          'Chave de API incorreta: Foi configurada a chave SECRETA (sb_secret_...). No painel do Supabase, copie a chave "anon" / "publishable" e cole no arquivo .env.',
-      };
-    }
+function mapearErroGoogle(mensagem: string | undefined, fallback: string): Resultado {
+  if (mensagem?.includes('Forbidden use of secret API key')) {
     return {
       sucesso: false,
-      mensagem: res.mensagem || 'Erro ao realizar login com o Google.',
+      mensagem:
+        'Chave de API incorreta: Foi configurada a chave SECRETA (sb_secret_...). No painel do Supabase, copie a chave "anon" / "publishable" e cole no arquivo .env.',
     };
+  }
+  return {
+    sucesso: false,
+    mensagem: mensagem || fallback,
+  };
+}
+
+export async function realizarLoginGoogle(): Promise<ResultadoGoogle> {
+  const res = await AuthModel.loginComGoogle();
+  if (!res.sucesso) {
+    return mapearErroGoogle(res.mensagem, 'Erro ao realizar login com o Google.');
   }
 
   return {
     sucesso: true,
+    redirecionando: res.redirecionando,
   };
+}
+
+export async function concluirCallbackGoogle(url: string): Promise<Resultado> {
+  const res = await AuthModel.concluirLoginOAuthPorUrl(url);
+  if (!res.sucesso) {
+    return mapearErroGoogle(res.mensagem, 'Não foi possível concluir o login com o Google.');
+  }
+
+  return { sucesso: true };
 }
 
 export async function carregarUsuarioAtual(): Promise<PerfilUsuarioDTO | null> {

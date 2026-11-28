@@ -48,6 +48,14 @@ async function tratarUrl(url: string | null) {
     return;
   }
 
+  // O retorno do login com Google em /auth-callback é processado pela própria
+  // tela src/app/auth-callback.tsx (Web) ou pelo openAuthSessionAsync (Mobile),
+  // evitando dupla troca do código PKCE de uso único.
+  const caminho = url.split(/[?#]/)[0];
+  if (caminho.includes('auth-callback')) {
+    return;
+  }
+
   const dadosAuth = extrairTokensDaUrl(url);
 
   if (!dadosAuth) {

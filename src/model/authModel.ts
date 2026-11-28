@@ -7,8 +7,142 @@ import {
 import { supabase } from "@/lib/supabaseClient";
 import * as Linking from "expo-linking";
 import * as WebBrowser from "expo-web-browser";
+import { Platform } from "react-native";
 
 WebBrowser.maybeCompleteAuthSession();
+
+export type ResultadoOAuth = {
+  sucesso: boolean;
+  mensagem?: string;
+  data?: any;
+  redirecionando?: boolean;
+};
+
+// Evita troca duplicada do mesmo código PKCE (ex.: React Strict Mode em dev
+// ou fallback simultâneo de deep link).
+const promessasPorCodigo = new Map<string, Promise<ResultadoOAuth>>();
+
+function extrairParametrosOAuth(urlCompleta: string) {
+  const hashPart = urlCompleta.split("#")[1] ?? "";
+  const searchPart = (urlCompleta.split("?")[1] ?? "").split("#")[0] ?? "";
+  const hashParams = new URLSearchParams(hashPart);
+  const searchParams = new URLSearchParams(searchPart);
+
+  const obter = (chave: string) =>
+    searchParams.get(chave) || hashParams.get(chave);
+
+  return {
+    errorDesc: obter("error_description") || obter("error"),
+    code: obter("code"),
+    accessToken: obter("access_token"),
+    refreshToken: obter("refresh_token"),
+  };
+}
+
+export async function concluirLoginOAuthPorUrl(
+  urlCompleta: string,
+  redirectUrl?: string,
+): Promise<ResultadoOAuth> {
+  const { errorDesc, code, accessToken, refreshToken } =
+    extrairParametrosOAuth(urlCompleta);
+
+  // 1. Verifica se houve erro retornado pelo Supabase ou Google
+  if (errorDesc) {
+    const descDecodificada = decodeURIComponent(errorDesc.replace(/\+/g, " "));
+    if (
+      descDecodificada.toLowerCase().includes("provider is not enabled") ||
+      descDecodificada.toLowerCase().includes("unsupported provider")
+    ) {
+      return {
+        sucesso: false,
+        mensagem:
+          'O login com o Google ainda não foi ativado no painel do Supabase. Vá em "Authentication" > "Providers" > "Google" e ative o provedor.',
+      };
+    }
+    if (
+      descDecodificada.toLowerCase().includes("redirect_uri") ||
+      descDecodificada.toLowerCase().includes("not_whitelisted") ||
+      descDecodificada.toLowerCase().includes("redirect url")
+    ) {
+      const destino = redirectUrl || Linking.createURL("auth-callback");
+      return {
+        sucesso: false,
+        mensagem: `URL de retorno não autorizada no Supabase (${destino}). Adicione "${destino}", "exp://**" e "petsafefront://**" nas "Redirect URLs" do painel do Supabase.`,
+      };
+    }
+    return {
+      sucesso: false,
+      mensagem: descDecodificada,
+    };
+  }
+
+  // 2. Fluxo PKCE (padrão Supabase v2): troca o código de autorização por sessão
+  if (code) {
+    const emAndamento = promessasPorCodigo.get(code);
+    if (emAndamento) {
+      return emAndamento;
+    }
+
+    const promessa: Promise<ResultadoOAuth> = (async () => {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.exchangeCodeForSession(code);
+
+      if (sessionError) {
+        // Caso outra chamada já tenha concluído a troca e salvo a sessão
+        const { data: atual } = await supabase.auth.getSession();
+        if (atual.session?.user) {
+          await sincronizarUsuario(atual.session.user);
+          return { sucesso: true, data: atual };
+        }
+        return { sucesso: false, mensagem: sessionError.message };
+      }
+
+      if (sessionData?.user) {
+        await sincronizarUsuario(sessionData.user);
+      }
+
+      return { sucesso: true, data: sessionData };
+    })();
+
+    promessasPorCodigo.set(code, promessa);
+    try {
+      return await promessa;
+    } finally {
+      setTimeout(() => promessasPorCodigo.delete(code), 30_000);
+    }
+  }
+
+  // 3. Fluxo Implícito (caso venham tokens diretamente no fragmento #)
+  if (accessToken && refreshToken) {
+    const { data: sessionData, error: sessionError } =
+      await supabase.auth.setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      });
+
+    if (sessionError) {
+      return { sucesso: false, mensagem: sessionError.message };
+    }
+
+    if (sessionData?.user) {
+      await sincronizarUsuario(sessionData.user);
+    }
+
+    return { sucesso: true, data: sessionData };
+  }
+
+  // 4. Fallback: usuário recarregou /auth-callback com sessão já ativa
+  const { data: sessaoExistente } = await supabase.auth.getSession();
+  if (sessaoExistente.session?.user) {
+    await sincronizarUsuario(sessaoExistente.session.user);
+    return { sucesso: true, data: sessaoExistente };
+  }
+
+  return {
+    sucesso: false,
+    mensagem: "Não foi possível concluir o login com Google.",
+  };
+}
 
 export async function login(email: string, senha: string) {
   const { data, error } = await supabase.auth.signInWithPassword({
@@ -28,7 +162,7 @@ export async function login(email: string, senha: string) {
   return { sucesso: true, data };
 }
 
-export async function loginComGoogle() {
+export async function loginComGoogle(): Promise<ResultadoOAuth> {
   try {
     const redirectUrl = Linking.createURL("auth-callback");
 
@@ -59,77 +193,19 @@ export async function loginComGoogle() {
       };
     }
 
+    // Na Web, redireciona na própria aba para evitar bloqueio de popups e falhas de COOP.
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.location.assign(data.url);
+      return { sucesso: true, redirecionando: true };
+    }
+
     const resultado = await WebBrowser.openAuthSessionAsync(
       data.url,
       redirectUrl,
     );
 
     if (resultado.type === "success" && resultado.url) {
-      const urlCompleta = resultado.url;
-      const hashPart = urlCompleta.split("#")[1];
-      const searchPart = urlCompleta.split("?")[1];
-      const params = new URLSearchParams(hashPart || searchPart || "");
-
-      // 1. Verifica se houve erro retornado pelo Supabase ou Google
-      const errorDesc = params.get("error_description") || params.get("error");
-      if (errorDesc) {
-        const descDecodificada = decodeURIComponent(
-          errorDesc.replace(/\+/g, " "),
-        );
-        if (
-          descDecodificada.toLowerCase().includes("redirect_uri") ||
-          descDecodificada.toLowerCase().includes("not_whitelisted") ||
-          descDecodificada.toLowerCase().includes("redirect url")
-        ) {
-          return {
-            sucesso: false,
-            mensagem: `URL de retorno não autorizada no Supabase (${redirectUrl}). Adicione "${redirectUrl}", "exp://**" e "petsafefront://**" nas "Redirect URLs" do painel do Supabase.`,
-          };
-        }
-        return {
-          sucesso: false,
-          mensagem: descDecodificada,
-        };
-      }
-
-      // 2. Fluxo PKCE (padrão Supabase v2): troca o código de autorização por sessão
-      const code = params.get("code");
-      if (code) {
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.exchangeCodeForSession(code);
-
-        if (sessionError) {
-          return { sucesso: false, mensagem: sessionError.message };
-        }
-
-        if (sessionData?.user) {
-          await sincronizarUsuario(sessionData.user);
-        }
-
-        return { sucesso: true, data: sessionData };
-      }
-
-      // 3. Fluxo Implícito (caso venham tokens diretamente)
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
-
-      if (accessToken && refreshToken) {
-        const { data: sessionData, error: sessionError } =
-          await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-
-        if (sessionError) {
-          return { sucesso: false, mensagem: sessionError.message };
-        }
-
-        if (sessionData?.user) {
-          await sincronizarUsuario(sessionData.user);
-        }
-
-        return { sucesso: true, data: sessionData };
-      }
+      return await concluirLoginOAuthPorUrl(resultado.url, redirectUrl);
     }
 
     if (resultado.type === "cancel" || resultado.type === "dismiss") {

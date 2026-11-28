@@ -57,6 +57,11 @@ export default function Login() {
     setErro(null);
     setCarregandoGoogle(true);
     const resultado = await AuthController.realizarLoginGoogle();
+
+    if (resultado.redirecionando) {
+      return;
+    }
+
     setCarregandoGoogle(false);
 
     if (!resultado.sucesso) {
