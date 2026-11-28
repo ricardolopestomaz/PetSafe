@@ -126,6 +126,23 @@ create table if not exists public.historico_medico (
   constraint historico_medico_pet_id_fkey foreign key (pet_id) references public.pets(id) on delete cascade
 );
 
+create table if not exists public.ficha_medica (
+  pet_id uuid not null,
+  peso_kg numeric check (peso_kg is null or (peso_kg > 0 and peso_kg <= 200)),
+  castrado boolean,
+  tipo_sanguineo text,
+  microchip text,
+  alergias text,
+  doencas_cronicas text,
+  medicamentos_uso text,
+  veterinario_nome text,
+  veterinario_telefone text,
+  observacoes_medicas text,
+  atualizado_em timestamp with time zone default now(),
+  constraint ficha_medica_pkey primary key (pet_id),
+  constraint ficha_medica_pet_id_fkey foreign key (pet_id) references public.pets(id) on delete cascade
+);
+
 create table if not exists public.medalhas (
   id uuid not null default gen_random_uuid(),
   pet_id uuid,
@@ -177,6 +194,11 @@ create trigger trg_usuarios_atualizado_em
 drop trigger if exists trg_pets_atualizado_em on public.pets;
 create trigger trg_pets_atualizado_em
   before update on public.pets
+  for each row execute function public.set_atualizado_em();
+
+drop trigger if exists trg_ficha_medica_atualizado_em on public.ficha_medica;
+create trigger trg_ficha_medica_atualizado_em
+  before update on public.ficha_medica
   for each row execute function public.set_atualizado_em();
 
 -- 3. ÍNDICES EM TODAS AS CHAVES ESTRANGEIRAS E COLUNAS DE RLS/ORDENAÇÃO
@@ -362,6 +384,24 @@ create policy "registrar leitura em medalha ativa" on public.leituras
     )
   );
 
+alter table public.ficha_medica enable row level security;
+
+drop policy if exists "tutor gerencia ficha medica dos seus pets" on public.ficha_medica;
+create policy "tutor gerencia ficha medica dos seus pets" on public.ficha_medica
+  for all to authenticated
+  using (
+    exists (
+      select 1 from public.pets p
+      where p.id = ficha_medica.pet_id and p.tutor_id = (select auth.uid())
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.pets p
+      where p.id = ficha_medica.pet_id and p.tutor_id = (select auth.uid())
+    )
+  );
+
 -- =====================================================
 -- D) Demais tabelas: RLS ligado (sem policies = acesso bloqueado
 --    até essas funções serem desenvolvidas)
@@ -379,6 +419,7 @@ alter table public.notificacoes enable row level security;
 grant usage on schema public to anon, authenticated;
 grant select, insert, update on public.usuarios to authenticated;
 grant select, insert, update, delete on public.pets to authenticated;
+grant select, insert, update, delete on public.ficha_medica to authenticated;
 grant select, insert, update, delete on public.medalhas to authenticated;
 grant select on public.leituras to authenticated;
 grant insert on public.leituras to anon, authenticated;
